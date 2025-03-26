@@ -1,3 +1,5 @@
+from django.urls import path, include
+
 """
 URL configuration for grrhhbackend project.
 
@@ -19,4 +21,5 @@ from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('auth/', include('authapp.urls')),
 ]
