@@ -1,0 +1,8 @@
+# Ignorar directorios __pycache__ y archivos compilados de Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorar archivos de caché específicos en subdirectorios (por ejemplo, en migraciones de Django)
+*/migrations/__pycache__/
