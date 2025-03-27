@@ -14,7 +14,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+#build: . le indica a Docker que construya
+# una imagen usando el Dockerfile ubicado en el directorio actual (.).
   web:
     build: .
     container_name: django_backend
@@ -27,7 +28,7 @@ services:
       - "8000:8000"
     volumes:
       - .:/app  # Se monta el código fuente como volumen
-    command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+    #command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
 
 volumes:
   postgres_data:

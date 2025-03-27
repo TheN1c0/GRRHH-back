@@ -10,8 +10,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Exponer el puerto 8000
+# Copiar el resto del proyecto (incluido start.sh si no usas volumen)
+COPY . .
+
+# Dar permisos de ejecución al script
+RUN chmod +x start.sh
+
+# Exponer el puerto de Django
 EXPOSE 8000
 
-# Comando por defecto para el contenedor
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Usar start.sh como comando por defecto
+CMD ["sh", "start.sh"]
