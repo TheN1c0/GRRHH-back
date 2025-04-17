@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'authapp',
     'rest_framework',
+    'personal',
 ]
 
 MIDDLEWARE = [
