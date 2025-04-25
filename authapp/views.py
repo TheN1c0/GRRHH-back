@@ -43,14 +43,17 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .auth_backend import CookieJWTAuthentication
 User = get_user_model()
-
+import logging
+logger = logging.getLogger(__name__)
 class LoginView(APIView):
-    permission_classes = [AllowAny]
+    authentication_classes = []  # 👈 Este cambio es clave
+    permission_classes = [AllowAny]  # Permitir acceso libre
     
     def post(self, request):
         user_input = request.data.get('username')  # puede ser email o username
         password = request.data.get('password')
-
+        logger.info(f"Usuario recibido: {user_input}")
+        logger.info(f"Contraseña recibida: {password}")
         # Buscar por email si es un correo
         if '@' in user_input:
             try:
@@ -77,7 +80,8 @@ class LoginView(APIView):
             return response
         else:
             response = Response({'detail': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
-            response.delete_cookie('access_token')  # 💥 Aquí se borra si ya había una
+            response.delete_cookie('access_token')
+
             return response
 
 
