@@ -17,6 +17,10 @@ class Cargo(models.Model):
 
 class Empleado(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    primer_nombre = models.CharField(max_length=50, null=True, blank=True)
+    otros_nombres = models.CharField(max_length=100, blank=True, null=True)  # opcional
+    apellido_paterno = models.CharField(max_length=50, null=True, blank=True)
+    apellido_materno = models.CharField(max_length=50, null=True, blank=True)
     rut = models.CharField(max_length=12, unique=True)
     fecha_nacimiento = models.DateField()
     direccion = models.TextField()
@@ -24,7 +28,7 @@ class Empleado(models.Model):
     cargo = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
-        return f"{self.usuario.get_full_name()} - {self.cargo.nombre}"
+        return f"{self.rut} - {self.cargo.nombre if self.cargo else 'Sin cargo'}"
 
 class Contrato(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
