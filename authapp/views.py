@@ -31,10 +31,9 @@ class RegisterView(APIView):
             return JsonResponse({"error": "Solo se permite el método POST"}, status=405)
         
     
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
-
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -42,6 +41,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from .auth_backend import CookieJWTAuthentication
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 User = get_user_model()
 import logging
 logger = logging.getLogger(__name__)
@@ -77,6 +77,19 @@ class LoginView(APIView):
                 samesite='Lax',
                 path='/'
             )
+            
+             # 🔐 Guardar refresh_token como cookie también
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                httponly=True,
+                secure=False,  # Cambiar a True en producción
+                samesite='Lax',
+                path='/auth/api/refresh/'
+            )
+
+            
+            
             return response
         else:
             response = Response({'detail': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -97,3 +110,34 @@ class DashboardView(APIView):
             'message': f'Bienvenido {request.user.username}',
             'usuario_id': request.user.id
         })
+
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response({'detail': 'Refresh token not found in cookies'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data={'refresh': refresh_token})
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        access_token = serializer.validated_data.get('access')
+
+        # Creamos la respuesta
+        response = Response({"access": access_token}, status=status.HTTP_200_OK)
+
+        # ✅ Actualizamos la cookie del access_token
+        response.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            secure=False,  # cambia a True en producción
+            samesite='Lax',
+            path='/'
+        )
+
+        return response
