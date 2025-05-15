@@ -36,3 +36,25 @@ class CargoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cargo
         fields = ['id', 'nombre', 'nombre_departamento']
+
+
+
+from rest_framework import serializers
+
+class HaberInputSerializer(serializers.Serializer):
+    nombre = serializers.CharField()
+    tipo = serializers.ChoiceField(choices=[('imponible', 'Imponible'), ('no_imponible', 'No Imponible')])
+    monto = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class DescuentoInputSerializer(serializers.Serializer):
+    tipo = serializers.CharField()  # nombre del tipo
+    monto = serializers.DecimalField(max_digits=12, decimal_places=2)
+    descripcion = serializers.CharField(allow_blank=True, required=False)
+
+class LiquidacionInputSerializer(serializers.Serializer):
+    contrato_id = serializers.IntegerField()
+    periodo_inicio = serializers.DateField()
+    periodo_termino = serializers.DateField()
+    gratificacion_tipo = serializers.ChoiceField(choices=[('legal', 'Legal'), ('pactada', 'Pactada')])
+    haberes = HaberInputSerializer(many=True)
+    descuentos = DescuentoInputSerializer(many=True)

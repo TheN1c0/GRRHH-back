@@ -27,7 +27,7 @@ class Empleado(models.Model):
     direccion = models.TextField()
     telefono = models.CharField(max_length=20)
     cargo = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
-
+    empleador = models.ForeignKey('Empleador', on_delete=models.SET_NULL, null=True)
     def __str__(self):
         return f"{self.rut} - {self.cargo.nombre if self.cargo else 'Sin cargo'}"
 
@@ -39,8 +39,8 @@ class Contrato(models.Model):
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2)
 
     def __str__(self):
-        return f"Contrato de {self.empleado.usuario.get_full_name()}"
-
+        nombre = self.empleado.usuario.get_full_name() if self.empleado and self.empleado.usuario else f"{self.empleado.rut}"
+        return f"Contrato de {nombre}"
 from django.db import models
 
 class Liquidacion(models.Model):
@@ -88,7 +88,7 @@ class Liquidacion(models.Model):
     creado_en = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"Liquidación {self.fecha_pago} - {self.contrato.empleado.rut}"
+        return f"Liquidación  {self.contrato.empleado.rut}"
 
 
 class RegistroAsistencia(models.Model):
