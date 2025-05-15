@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 # Create your models here.
 
 class Departamento(models.Model):
@@ -32,6 +33,7 @@ class Empleado(models.Model):
 
 class Contrato(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
+    tipo_contrato = models.CharField(max_length=50, null=True, blank=True)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2)
@@ -39,16 +41,55 @@ class Contrato(models.Model):
     def __str__(self):
         return f"Contrato de {self.empleado.usuario.get_full_name()}"
 
+from django.db import models
+
 class Liquidacion(models.Model):
-    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE)
-    fecha_pago = models.DateField()
-    sueldo_bruto = models.DecimalField(max_digits=12, decimal_places=2)
-    descuentos = models.DecimalField(max_digits=12, decimal_places=2)
-    sueldo_liquido = models.DecimalField(max_digits=12, decimal_places=2)
-    documento = models.FileField(upload_to='liquidaciones/')
+    contrato = models.ForeignKey('Contrato', on_delete=models.CASCADE)
+
+    # Campos congelados del empleado (para historial)
+    rut_empleado = models.CharField(max_length=12, null=True, blank=True)
+    nombre_empleado = models.CharField(max_length=200, null=True, blank=True)
+    cargo_empleado = models.CharField(max_length=100, default="Sin cargo")
+    tipo_contrato = models.CharField(max_length=50, null=True, blank=True)
+    fecha_ingreso = models.DateField(null=True, blank=True)
+
+    # Datos previsionales congelados
+    nombre_afp = models.CharField(max_length=100,null=True)
+    porcentaje_afp = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+    comision_afp = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    nombre_salud = models.CharField(max_length=100,null=True)
+    tipo_salud = models.CharField(max_length=10,null=True)
+    porcentaje_salud = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+
+    nombre_seguro_cesantia = models.CharField(max_length=100,null=True)
+    porcentaje_cesantia_trabajador = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+    porcentaje_cesantia_empleador = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+
+    # Datos congelados del empleador
+    razon_social_empleador = models.CharField(max_length=255,null=True)
+    rut_empleador = models.CharField(max_length=12,null=True)
+    direccion_empleador = models.CharField(max_length=255,null=True)
+
+    # Periodo trabajado
+    periodo_inicio = models.DateField(null=True, blank=True)
+    periodo_termino = models.DateField( null=True, blank=True)
+
+    # Totales
+    sueldo_base = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    sueldo_bruto = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    gratificacion = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    total_haberes = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    total_descuentos = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    sueldo_liquido = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+
+    documento = models.FileField(upload_to='liquidaciones/', blank=True, null=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    creado_en = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"Liquidación {self.fecha_pago} - {self.contrato.empleado.usuario.username}"
+        return f"Liquidación {self.fecha_pago} - {self.contrato.empleado.rut}"
+
 
 class RegistroAsistencia(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
@@ -92,11 +133,12 @@ class Salud(models.Model):
         return f"Isapre: {self.nombre}"
 
 class SeguroCesantia(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
     porcentaje_trabajador = models.DecimalField(max_digits=5, decimal_places=2, default=0.60)
     porcentaje_empleador = models.DecimalField(max_digits=5, decimal_places=2, default=2.40)
 
     def __str__(self):
-        return "Seguro de Cesantía (AFC)"
+        return self.nombre
 
 class DatosPrevisionales(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
@@ -113,34 +155,6 @@ class TipoDescuento(models.Model):
     def __str__(self):
         return self.nombre
 
-
-from django.db import models
-from datetime import date
-from django.db.models import Sum
-
-class Liquidacion(models.Model):
-    contrato = models.ForeignKey('Contrato', on_delete=models.CASCADE)
-    fecha_pago = models.DateField()
-    
-    sueldo_bruto = models.DecimalField(max_digits=12, decimal_places=2)
-    sueldo_imponible = models.DecimalField(max_digits=12, decimal_places=2)
-    ingresos_no_imponibles = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    descuento_afp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    descuento_salud = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    descuento_cesantia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    descuento_inasistencias = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    monto_horas_extras = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    otros_descuentos = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    total_descuentos = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    sueldo_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    documento = models.FileField(upload_to='liquidaciones/', null=True, blank=True)
-
-    def __str__(self):
-        return f"Liquidación {self.fecha_pago} - {self.contrato.empleado.usuario.username}"
-
 class OtroDescuento(models.Model):
     liquidacion = models.ForeignKey(Liquidacion, on_delete=models.CASCADE, related_name='detalles_descuento')
     tipo = models.ForeignKey(TipoDescuento, on_delete=models.SET_NULL, null=True)
@@ -149,3 +163,34 @@ class OtroDescuento(models.Model):
 
     def __str__(self):
         return f"{self.tipo.nombre}: {self.monto} - {self.liquidacion}"
+
+class Empleador(models.Model):
+    nombre = models.CharField(max_length=255)
+    rut = models.CharField(max_length=12)
+    direccion = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.rut})"
+
+class ParametroSistema(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    valor_decimal = models.DecimalField(max_digits=12, decimal_places=2)
+    fecha_vigencia = models.DateField()
+
+    def __str__(self):
+        return f"{self.nombre}: {self.valor_decimal} desde {self.fecha_vigencia}"
+
+class Haber(models.Model):
+    TIPO_CHOICES = [
+        ('imponible', 'Imponible'),
+        ('no_imponible', 'No Imponible'),
+    ]
+
+    liquidacion = models.ForeignKey('Liquidacion', on_delete=models.CASCADE, related_name='haberes')
+    nombre = models.CharField(max_length=100)  # Ej: "Bono Producción"
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo}) - ${self.monto}"
+
