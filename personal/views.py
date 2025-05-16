@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from .models import Empleado, Cargo, Contrato, DatosPrevisionales, Liquidacion, Haber, OtroDescuento, Empleador, TipoDescuento
-from .serializers import EmpleadoSerializer, CargoSerializer, LiquidacionInputSerializer
+from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -119,3 +119,11 @@ def generar_pdf_liquidacion(liquidacion):
     if not pdf.err:
         return result.getvalue()
     return None
+
+class ListaContratosView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        contratos = Contrato.objects.select_related('empleado', 'empleado__cargo').all()
+        serializer = ContratoEmpleadoSerializer(contratos, many=True)
+        return Response(serializer.data)

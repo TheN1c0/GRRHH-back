@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Empleado, Cargo
+from .models import Empleado, Cargo, Contrato
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     nombre_cargo = serializers.CharField(source='cargo.nombre', read_only=True)
@@ -58,3 +58,14 @@ class LiquidacionInputSerializer(serializers.Serializer):
     gratificacion_tipo = serializers.ChoiceField(choices=[('legal', 'Legal'), ('pactada', 'Pactada')])
     haberes = HaberInputSerializer(many=True)
     descuentos = DescuentoInputSerializer(many=True)
+class ContratoEmpleadoSerializer(serializers.ModelSerializer):
+    nombre_empleado = serializers.SerializerMethodField()
+    cargo = serializers.CharField(source='empleado.cargo.nombre', default='Sin cargo')
+
+    class Meta:
+        model = Contrato
+        fields = ['id', 'nombre_empleado', 'cargo']
+
+    def get_nombre_empleado(self, obj):
+        emp = obj.empleado
+        return f"{emp.primer_nombre} {emp.otros_nombres or ''} {emp.apellido_paterno} {emp.apellido_materno}".strip()
