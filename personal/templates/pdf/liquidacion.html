@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 5px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Liquidación de Sueldo</h1>
+    <p><strong>Trabajador:</strong> {{ liquidacion.nombre_empleado }}</p>
+    <p><strong>RUT:</strong> {{ liquidacion.rut_empleado }}</p>
+    <p>
+      <strong>Periodo:</strong> {{ liquidacion.periodo_inicio }} al {{
+      liquidacion.periodo_termino }}
+    </p>
+
+    <table>
+      <tr>
+        <th>Detalle</th>
+        <th>Monto</th>
+      </tr>
+      <tr>
+        <td>Sueldo Base</td>
+        <td>{{ liquidacion.sueldo_base }}</td>
+      </tr>
+      <tr>
+        <td>Gratificación</td>
+        <td>{{ liquidacion.gratificacion }}</td>
+      </tr>
+      <tr>
+        <td>Total Haberes</td>
+        <td>{{ liquidacion.total_haberes }}</td>
+      </tr>
+      <tr>
+        <td>Total Descuentos</td>
+        <td>{{ liquidacion.total_descuentos }}</td>
+      </tr>
+      <tr>
+        <td><strong>Sueldo Líquido</strong></td>
+        <td><strong>{{ liquidacion.sueldo_liquido }}</strong></td>
+      </tr>
+    </table>
+  </body>
+</html>

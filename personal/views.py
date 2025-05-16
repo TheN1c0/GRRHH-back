@@ -8,8 +8,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from decimal import Decimal
-
-
+from xhtml2pdf import pisa
+from io import BytesIO
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 class EmpleadoViewSet(viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
@@ -92,6 +94,28 @@ class GenerarLiquidacionView(APIView):
             liquidacion.sueldo_liquido = sueldo_liquido
             liquidacion.save()
 
-            return Response({"message": "Liquidación generada con éxito", "id": liquidacion.id})
+            pdf_data = generar_pdf_liquidacion(liquidacion)
+            if pdf_data:
+                response = HttpResponse(pdf_data, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="liquidacion_{liquidacion.id}.pdf"'
+                return response
+            else:
+                return Response({'error': 'Error al generar el PDF'}, status=500)
+
+        
+        
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def generar_pdf_liquidacion(liquidacion):
+    template_path = 'pdf/liquidacion.html'
+    context = {'liquidacion': liquidacion}
+    html = render_to_string(template_path, context)
+
+    result = BytesIO()
+    pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result)
+
+    if not pdf.err:
+        return result.getvalue()
+    return None
