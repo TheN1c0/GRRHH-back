@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+
 from PyPDF2 import PdfReader
+import nltk
 from nltk.tokenize import word_tokenize
 import re
 
