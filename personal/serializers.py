@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Empleado, Cargo, Contrato
+from .models import Empleado, Cargo, Contrato, Postulante, Etiqueta, Cargo
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     nombre_cargo = serializers.CharField(source='cargo.nombre', read_only=True)
@@ -69,3 +69,31 @@ class ContratoEmpleadoSerializer(serializers.ModelSerializer):
     def get_nombre_empleado(self, obj):
         emp = obj.empleado
         return f"{emp.primer_nombre} {emp.otros_nombres or ''} {emp.apellido_paterno} {emp.apellido_materno}".strip()
+
+class EtiquetaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Etiqueta
+        fields = ['id', 'nombre']
+    
+class PostulanteSerializer(serializers.ModelSerializer):
+    etiquetas = EtiquetaSerializer(many=True, read_only=True)
+    cargo_postulado = serializers.PrimaryKeyRelatedField(queryset=Cargo.objects.all())
+
+    class Meta:
+        model = Postulante
+        fields = [
+            'id',
+            'primer_nombre',
+            'otros_nombres',
+            'apellido_paterno',
+            'apellido_materno',
+            'direccion',
+            'correo',
+            'telefono',
+            'cargo_postulado',
+            'curriculum',
+            'estado',
+            'fecha_postulacion',
+            'etiquetas',
+        ]
+        read_only_fields = ['estado', 'fecha_postulacion', 'etiquetas']

@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from PyPDF2 import PdfReader
+from nltk.tokenize import word_tokenize
+import re
+
 # Create your models here.
 
 class Departamento(models.Model):
@@ -193,4 +197,96 @@ class Haber(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.tipo}) - ${self.monto}"
+
+
+
+
+class Etiqueta(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
+class PalabraClave(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    categoria = models.CharField(max_length=50, choices=[
+        ('habilidad', 'Habilidad'),
+        ('certificacion', 'Certificación'),
+        ('area', 'Área'),
+    ])
+
+    def __str__(self):
+        return f"{self.nombre} ({self.categoria})"
+
+class Postulante(models.Model):
+    ESTADOS = [
+        ('postulado', 'Postulado'),
+        ('entrevista', 'Entrevista'),
+        ('evaluacion', 'Evaluación'),
+        ('seleccionado', 'Seleccionado'),
+        ('descartado', 'Descartado'),
+    ]
+
+    primer_nombre = models.CharField(max_length=50)
+    otros_nombres = models.CharField(max_length=100, blank=True, null=True)
+    apellido_paterno = models.CharField(max_length=50)
+    apellido_materno = models.CharField(max_length=50)
+    correo = models.EmailField()
+    telefono = models.CharField(max_length=20, blank=True)
+    cargo_postulado = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
+    curriculum = models.FileField(upload_to='postulantes/cv/', null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='postulado')
+    fecha_postulacion = models.DateTimeField(default=timezone.now)
+    etiquetas = models.ManyToManyField(Etiqueta, blank=True)
+
+    def __str__(self):
+        return f"{self.primer_nombre} {self.apellido_paterno} - {self.cargo_postulado}"
+
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+def procesar_curriculum(self):
+    if not self.curriculum:
+        return
+
+    etiquetas_detectadas = set()
+    palabras_no_reconocidas = set()
+
+    try:
+        pdf = PdfReader(self.curriculum)
+        texto = ""
+        for page in pdf.pages:
+            texto += page.extract_text().lower()
+
+        palabras_clave = PalabraClave.objects.values_list('nombre', flat=True)
+        palabras_cv = set(re.findall(r'\b\w+\b', texto))
+
+        for palabra in palabras_cv:
+            if palabra in palabras_clave:
+                etiquetas_detectadas.add(palabra)
+            elif len(palabra) > 3:
+                palabras_no_reconocidas.add(palabra)
+
+        for palabra in etiquetas_detectadas:
+            etiqueta_obj, _ = Etiqueta.objects.get_or_create(nombre=palabra)
+            self.etiquetas.add(etiqueta_obj)
+
+        # Aquí puedes registrar o guardar las palabras no reconocidas para revisión manual
+        for palabra in sorted(palabras_no_reconocidas):
+            obj, created = PalabraDesconocida.objects.get_or_create(palabra=palabra)
+            if not created:
+                obj.veces_detectada += 1
+                obj.save()
+
+    except Exception as e:
+        print(f"Error procesando CV: {e}")
+
+class PalabraDesconocida(models.Model):
+    palabra = models.CharField(max_length=100, unique=True)
+    fecha_detectada = models.DateTimeField(auto_now_add=True)
+    veces_detectada = models.PositiveIntegerField(default=1)
+    revisada = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.palabra
 

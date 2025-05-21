@@ -4,3 +4,4 @@ djangorestframework
 django-cors-headers
 djangorestframework-simplejwt
 xhtml2pdf
+PyPDF2
