@@ -196,6 +196,7 @@ class ReporteMensualView(APIView):
         
    
 class PostulanteViewSet(viewsets.ModelViewSet):
+   
     queryset = Postulante.objects.all().order_by('-fecha_postulacion')
     serializer_class = PostulanteSerializer
 
