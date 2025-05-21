@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Empleado, Cargo, Contrato, DatosPrevisionales, Liquidacion, Haber, OtroDescuento, Empleador, TipoDescuento
+from .models import Empleado, Cargo, Contrato, DatosPrevisionales, Liquidacion, Haber, OtroDescuento, Empleador, TipoDescuento, Contrato, RegistroAsistencia, PermisoAusencia, Empleado
 from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +12,8 @@ from xhtml2pdf import pisa
 from io import BytesIO
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+from django.utils.timezone import datetime
+from django.db import models
 class EmpleadoViewSet(viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
@@ -127,3 +129,67 @@ class ListaContratosView(APIView):
         contratos = Contrato.objects.select_related('empleado', 'empleado__cargo').all()
         serializer = ContratoEmpleadoSerializer(contratos, many=True)
         return Response(serializer.data)
+    
+
+
+
+
+
+class ReporteMensualView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        mes = int(request.GET.get('mes'))
+        anio = int(request.GET.get('anio'))
+
+        # Filtrar liquidaciones del mes
+        liquidaciones = Liquidacion.objects.filter(
+            periodo_inicio__month=mes,
+            periodo_inicio__year=anio
+        )
+
+        empleados_pagados = liquidaciones.values('contrato__empleado').distinct().count()
+        sueldo_bruto_total = sum(l.sueldo_bruto or 0 for l in liquidaciones)
+        total_descuentos = sum(l.total_descuentos or 0 for l in liquidaciones)
+        sueldo_liquido_total = sum(l.sueldo_liquido or 0 for l in liquidaciones)
+
+        # Contratos activos durante el mes
+        contratos = Contrato.objects.filter(
+            fecha_inicio__lte=datetime(anio, mes, 28),
+        ).filter(
+            models.Q(fecha_fin__isnull=True) | models.Q(fecha_fin__gte=datetime(anio, mes, 1))
+        )
+        total_empleados_contrato = contratos.count()
+        porcentaje_pagado = (empleados_pagados / total_empleados_contrato) * 100 if total_empleados_contrato > 0 else 0
+
+        # Ausentismo laboral
+        dias_mes = 30  # para simplificar, luego se puede usar calendar.monthrange
+        total_posibles = total_empleados_contrato * dias_mes
+        asistencias = RegistroAsistencia.objects.filter(fecha__month=mes, fecha__year=anio)
+        asistencias_presentes = asistencias.filter(presente=True).count()
+
+        permisos = PermisoAusencia.objects.filter(
+            fecha_inicio__lte=datetime(anio, mes, 28),
+            fecha_fin__gte=datetime(anio, mes, 1),
+            aprobado=True
+        )
+
+        dias_permiso = 0
+        for permiso in permisos:
+            inicio = max(permiso.fecha_inicio, datetime(anio, mes, 1).date())
+            fin = min(permiso.fecha_fin, datetime(anio, mes, 28).date())
+            dias_permiso += (fin - inicio).days + 1
+
+        dias_ausentes = total_posibles - asistencias_presentes - dias_permiso
+        ausentismo_laboral = (dias_ausentes / total_posibles) * 100 if total_posibles > 0 else 0
+
+        return Response({
+            "mes": mes,
+            "anio": anio,
+            "empleados_pagados": empleados_pagados,
+            "sueldo_bruto_total": sueldo_bruto_total,
+            "total_descuentos": total_descuentos,
+            "sueldo_liquido_total": sueldo_liquido_total,
+            "porcentaje_pagado": round(porcentaje_pagado, 2),
+            "ausentismo_laboral": round(ausentismo_laboral, 2)
+        })
