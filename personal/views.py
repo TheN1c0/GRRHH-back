@@ -193,3 +193,12 @@ class ReporteMensualView(APIView):
             "porcentaje_pagado": round(porcentaje_pagado, 2),
             "ausentismo_laboral": round(ausentismo_laboral, 2)
         })
+        
+   
+class PostulanteViewSet(viewsets.ModelViewSet):
+    queryset = Postulante.objects.all().order_by('-fecha_postulacion')
+    serializer_class = PostulanteSerializer
+
+    def perform_create(self, serializer):
+        postulante = serializer.save()
+        postulante.procesar_curriculum()     

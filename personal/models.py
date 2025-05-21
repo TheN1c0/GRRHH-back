@@ -230,6 +230,7 @@ class Postulante(models.Model):
     otros_nombres = models.CharField(max_length=100, blank=True, null=True)
     apellido_paterno = models.CharField(max_length=50)
     apellido_materno = models.CharField(max_length=50)
+    direccion = models.TextField(blank=True, null=True)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20, blank=True)
     cargo_postulado = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
