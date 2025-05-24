@@ -3,6 +3,6 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
-
+.env*
 # Ignorar archivos de caché específicos en subdirectorios (por ejemplo, en migraciones de Django)
 */migrations/__pycache__/
