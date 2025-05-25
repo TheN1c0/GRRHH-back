@@ -219,6 +219,10 @@ class PalabraClave(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.categoria})"
 
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 class Postulante(models.Model):
     ESTADOS = [
         ('postulado', 'Postulado'),
@@ -244,45 +248,41 @@ class Postulante(models.Model):
     def __str__(self):
         return f"{self.primer_nombre} {self.apellido_paterno} - {self.cargo_postulado}"
 
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-def procesar_curriculum(self):
-    if not self.curriculum:
-        return
+    def procesar_curriculum(self):
+        if not self.curriculum:
+            return
 
-    etiquetas_detectadas = set()
-    palabras_no_reconocidas = set()
+        etiquetas_detectadas = set()
+        palabras_no_reconocidas = set()
 
-    try:
-        pdf = PdfReader(self.curriculum)
-        texto = ""
-        for page in pdf.pages:
-            texto += page.extract_text().lower()
+        try:
+            pdf = PdfReader(self.curriculum)
+            texto = ""
+            for page in pdf.pages:
+                texto += page.extract_text().lower()
 
-        palabras_clave = PalabraClave.objects.values_list('nombre', flat=True)
-        palabras_cv = set(re.findall(r'\b\w+\b', texto))
+            palabras_clave = PalabraClave.objects.values_list('nombre', flat=True)
+            palabras_cv = set(re.findall(r'\b\w+\b', texto))
 
-        for palabra in palabras_cv:
-            if palabra in palabras_clave:
-                etiquetas_detectadas.add(palabra)
-            elif len(palabra) > 3:
-                palabras_no_reconocidas.add(palabra)
+            for palabra in palabras_cv:
+                if palabra in palabras_clave:
+                    etiquetas_detectadas.add(palabra)
+                elif len(palabra) > 3:
+                    palabras_no_reconocidas.add(palabra)
 
-        for palabra in etiquetas_detectadas:
-            etiqueta_obj, _ = Etiqueta.objects.get_or_create(nombre=palabra)
-            self.etiquetas.add(etiqueta_obj)
+            for palabra in etiquetas_detectadas:
+                etiqueta_obj, _ = Etiqueta.objects.get_or_create(nombre=palabra)
+                self.etiquetas.add(etiqueta_obj)
 
-        # Aquí puedes registrar o guardar las palabras no reconocidas para revisión manual
-        for palabra in sorted(palabras_no_reconocidas):
-            obj, created = PalabraDesconocida.objects.get_or_create(palabra=palabra)
-            if not created:
-                obj.veces_detectada += 1
-                obj.save()
+            # Aquí puedes registrar o guardar las palabras no reconocidas para revisión manual
+            for palabra in sorted(palabras_no_reconocidas):
+                obj, created = PalabraDesconocida.objects.get_or_create(palabra=palabra)
+                if not created:
+                    obj.veces_detectada += 1
+                    obj.save()
 
-    except Exception as e:
-        print(f"Error procesando CV: {e}")
+        except Exception as e:
+            print(f"Error procesando CV: {e}")
 
 class PalabraDesconocida(models.Model):
     palabra = models.CharField(max_length=100, unique=True)
