@@ -231,7 +231,7 @@ class Postulante(models.Model):
         ('seleccionado', 'Seleccionado'),
         ('descartado', 'Descartado'),
     ]
-
+    rut = models.CharField(max_length=12, blank=True, null=True, unique=True)
     primer_nombre = models.CharField(max_length=50)
     otros_nombres = models.CharField(max_length=100, blank=True, null=True)
     apellido_paterno = models.CharField(max_length=50)
@@ -244,6 +244,7 @@ class Postulante(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADOS, default='postulado')
     fecha_postulacion = models.DateTimeField(default=timezone.now)
     etiquetas = models.ManyToManyField(Etiqueta, blank=True)
+    prioridad = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
 
     def __str__(self):
         return f"{self.primer_nombre} {self.apellido_paterno} - {self.cargo_postulado}"
