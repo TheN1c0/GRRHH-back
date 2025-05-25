@@ -34,6 +34,7 @@ class Empleado(models.Model):
     telefono = models.CharField(max_length=20)
     cargo = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
     empleador = models.ForeignKey('Empleador', on_delete=models.SET_NULL, null=True)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados_creados')
     def __str__(self):
         return f"{self.rut} - {self.cargo.nombre if self.cargo else 'Sin cargo'}"
 

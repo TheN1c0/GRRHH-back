@@ -2,7 +2,23 @@ from django.shortcuts import render
 from rest_framework.permissions import AllowAny
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Empleado, Cargo, Contrato, DatosPrevisionales, Liquidacion, Haber, OtroDescuento, Empleador, TipoDescuento, Contrato, RegistroAsistencia, PermisoAusencia, Empleado
+from .models import (
+    AFP,
+    Cargo,
+    Contrato,
+    DatosPrevisionales,
+    Empleado,
+    Empleador,
+    Haber,
+    Liquidacion,
+    OtroDescuento,
+    ParametroSistema,
+    PermisoAusencia,
+    RegistroAsistencia,
+    Salud,
+    SeguroCesantia,
+    TipoDescuento,
+)
 from .serializers import *
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,6 +30,10 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 from django.utils.timezone import datetime
 from django.db import models
+from rest_framework.decorators import api_view, permission_classes
+
+from .models import Empleado, Contrato, DatosPrevisionales, AFP, Salud, SeguroCesantia, Cargo, Empleador
+
 class EmpleadoViewSet(viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
@@ -203,3 +223,52 @@ class PostulanteViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         postulante = serializer.save()
         postulante.procesar_curriculum()     
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contratar_postulante(request):
+    data = request.data
+
+    try:
+        # 1. Crear Empleado
+        emp_data = data['empleado']
+        cargo = Cargo.objects.get(pk=emp_data['cargo'])
+        empleador = Empleador.objects.get(pk=emp_data['empleador'])
+
+        empleado = Empleado.objects.create(
+            rut=emp_data['rut'],
+            primer_nombre=emp_data['primer_nombre'],
+            otros_nombres=emp_data.get('otros_nombres', ''),
+            apellido_paterno=emp_data['apellido_paterno'],
+            apellido_materno=emp_data['apellido_materno'],
+            direccion=emp_data['direccion'],
+            telefono=emp_data['telefono'],
+            cargo=cargo,
+            empleador=empleador,
+            creado_por=request.user
+        )
+
+        # 2. Crear Contrato
+        contrato_data = data['contrato']
+        Contrato.objects.create(
+            empleado=empleado,
+            tipo_contrato=contrato_data['tipo_contrato'],
+            fecha_inicio=contrato_data['fecha_inicio'],
+            fecha_fin=contrato_data.get('fecha_fin'),
+            sueldo_base=contrato_data['sueldo_base']
+        )
+
+        # 3. Crear Datos Previsionales
+        previsionales = data['prevision']
+        DatosPrevisionales.objects.create(
+            empleado=empleado,
+            afp=AFP.objects.get(pk=previsionales['afp']),
+            salud=Salud.objects.get(pk=previsionales['salud']),
+            seguro_cesantia=SeguroCesantia.objects.get(pk=previsionales['seguro_cesantia']),
+        )
+
+        return Response({'mensaje': 'Empleado contratado con éxito'}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

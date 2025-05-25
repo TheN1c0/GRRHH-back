@@ -1,7 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import EmpleadoViewSet, CargoViewSet, GenerarLiquidacionView, ListaContratosView, ReporteMensualView, PostulanteViewSet
-
+from .views import (EmpleadoViewSet,
+                    CargoViewSet, 
+                    GenerarLiquidacionView,
+                    ListaContratosView, 
+                    ReporteMensualView, 
+                    PostulanteViewSet,
+                    contratar_postulante
+)
 
 router = DefaultRouter()
 router.register(r'empleados', EmpleadoViewSet)
@@ -12,4 +18,5 @@ urlpatterns = [
      path('api/liquidaciones/generar/', GenerarLiquidacionView.as_view(), name='generar-liquidacion'),
      path('api/contratos/', ListaContratosView.as_view(), name='lista-contratos'),
      path('api/reporte-mensual/', ReporteMensualView.as_view(), name='reporte-mensual'),
+     path('api/contratar/', contratar_postulante, name='contratar_postulante'),
 ]
