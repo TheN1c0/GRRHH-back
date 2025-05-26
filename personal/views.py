@@ -31,7 +31,6 @@ from django.http import HttpResponse
 from django.utils.timezone import datetime
 from django.db import models
 from rest_framework.decorators import api_view, permission_classes
-
 from .models import Empleado, Contrato, DatosPrevisionales, AFP, Salud, SeguroCesantia, Cargo, Empleador
 
 class EmpleadoViewSet(viewsets.ModelViewSet):
@@ -272,3 +271,19 @@ def contratar_postulante(request):
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AFPViewSet(viewsets.ModelViewSet):
+    queryset = AFP.objects.all()
+    serializer_class = AFPSerializer
+    permission_classes = [IsAuthenticated]
+
+class SaludViewSet(viewsets.ModelViewSet):
+    queryset = Salud.objects.all()
+    serializer_class = SaludSerializer
+    permission_classes = [IsAuthenticated]
+
+class CesantiaViewSet(viewsets.ModelViewSet):
+    queryset = SeguroCesantia.objects.all()
+    serializer_class = CesantiaSerializer
+    permission_classes = [IsAuthenticated]

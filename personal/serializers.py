@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import Empleado, Cargo, Contrato, Postulante, Etiqueta, Cargo
+from .models import (Empleado,
+                     Cargo, 
+                     Contrato, 
+                     Postulante, 
+                     Etiqueta, 
+                     Cargo, 
+                     AFP, 
+                     Salud, 
+                     SeguroCesantia)
+
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     nombre_cargo = serializers.CharField(source='cargo.nombre', read_only=True)
@@ -97,3 +106,18 @@ class PostulanteSerializer(serializers.ModelSerializer):
             'etiquetas',
         ]
         read_only_fields = ['estado', 'fecha_postulacion', 'etiquetas']
+        
+class AFPSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AFP
+        fields = '__all__'
+
+class SaludSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Salud
+        fields = '__all__'
+
+class CesantiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SeguroCesantia
+        fields = '__all__'
