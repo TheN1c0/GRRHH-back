@@ -9,7 +9,8 @@ from .views import (EmpleadoViewSet,
                     contratar_postulante,
                     AFPViewSet, 
                     SaludViewSet, 
-                    CesantiaViewSet
+                    CesantiaViewSet,
+                    ReglasContratoViewSet
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ router.register(r'postulantes', PostulanteViewSet)
 router.register(r'afp', AFPViewSet)
 router.register(r'salud', SaludViewSet)
 router.register(r'cesantia', CesantiaViewSet)
+router.register(r'personal/reglas-contrato', ReglasContratoViewSet)
 urlpatterns = [
     path('api/', include(router.urls)),
      path('api/liquidaciones/generar/', GenerarLiquidacionView.as_view(), name='generar-liquidacion'),

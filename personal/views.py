@@ -287,3 +287,7 @@ class CesantiaViewSet(viewsets.ModelViewSet):
     queryset = SeguroCesantia.objects.all()
     serializer_class = CesantiaSerializer
     permission_classes = [IsAuthenticated]
+    
+class ReglasContratoViewSet(viewsets.ModelViewSet):
+    queryset = ReglasContrato.objects.all()
+    serializer_class = ReglasContratoSerializer

@@ -37,6 +37,19 @@ class Empleado(models.Model):
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados_creados')
     def __str__(self):
         return f"{self.rut} - {self.cargo.nombre if self.cargo else 'Sin cargo'}"
+    
+class ReglasContrato(models.Model):
+    nombre = models.CharField(max_length=100)
+    requiere_cotizaciones = models.BooleanField(default=True)
+    controla_asistencia = models.BooleanField(default=True)
+    requiere_liquidacion = models.BooleanField(default=True)
+    genera_vacaciones = models.BooleanField(default=True)
+    afecta_antiguedad = models.BooleanField(default=True)
+    requiere_firma_digital = models.BooleanField(default=False)
+    aplica_seguro_invalidez = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.nombre
 
 class Contrato(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
@@ -44,7 +57,7 @@ class Contrato(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2)
-
+    reglas = models.ForeignKey(ReglasContrato, on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         nombre = self.empleado.usuario.get_full_name() if self.empleado and self.empleado.usuario else f"{self.empleado.rut}"
         return f"Contrato de {nombre}"
@@ -158,7 +171,7 @@ class DatosPrevisionales(models.Model):
 
 class TipoDescuento(models.Model):
     nombre = models.CharField(max_length=100)
-
+   
     def __str__(self):
         return self.nombre
 

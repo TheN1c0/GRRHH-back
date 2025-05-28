@@ -7,7 +7,8 @@ from .models import (Empleado,
                      Cargo, 
                      AFP, 
                      Salud, 
-                     SeguroCesantia)
+                     SeguroCesantia,
+                     ReglasContrato)
 
 
 class EmpleadoSerializer(serializers.ModelSerializer):
@@ -120,4 +121,8 @@ class SaludSerializer(serializers.ModelSerializer):
 class CesantiaSerializer(serializers.ModelSerializer):
     class Meta:
         model = SeguroCesantia
+        fields = '__all__'
+class ReglasContratoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReglasContrato
         fields = '__all__'
