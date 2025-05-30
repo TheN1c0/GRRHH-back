@@ -8,7 +8,8 @@ from .models import (Empleado,
                      AFP, 
                      Salud, 
                      SeguroCesantia,
-                     ReglasContrato)
+                     ReglasContrato,
+                     Departamento)
 
 
 class EmpleadoSerializer(serializers.ModelSerializer):
@@ -41,12 +42,17 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         return "Sin usuario asignado"
 
 class CargoSerializer(serializers.ModelSerializer):
-    nombre_departamento = serializers.CharField(source='departamento.nombre', read_only=True)
+    departamento_nombre = serializers.CharField(source='departamento.nombre', read_only=True)
+    superior_nombre = serializers.CharField(source='superior.nombre', read_only=True)
 
     class Meta:
         model = Cargo
-        fields = ['id', 'nombre', 'nombre_departamento']
+        fields = ['id', 'nombre', 'departamento', 'superior', 'departamento_nombre', 'superior_nombre']
 
+class DepartamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Departamento
+        fields = ['id', 'nombre']
 
 
 from rest_framework import serializers

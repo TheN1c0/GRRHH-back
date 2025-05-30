@@ -38,11 +38,19 @@ class EmpleadoViewSet(viewsets.ModelViewSet):
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
 
-class CargoViewSet(viewsets.ReadOnlyModelViewSet):
+class CargoViewSet(viewsets.ModelViewSet):
     queryset = Cargo.objects.all()
     serializer_class = CargoSerializer
-    permission_classes = [IsAuthenticated]  # o AllowAny para que cualquiera pueda ver
-    
+    permission_classes = [IsAuthenticated]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if Empleado.objects.filter(cargo=instance).exists():
+            return Response(
+                {"detail": "No se puede eliminar este cargo porque tiene empleados asignados."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
 
 class GenerarLiquidacionView(APIView):
     permission_classes = [AllowAny]
@@ -291,3 +299,16 @@ class CesantiaViewSet(viewsets.ModelViewSet):
 class ReglasContratoViewSet(viewsets.ModelViewSet):
     queryset = ReglasContrato.objects.all()
     serializer_class = ReglasContratoSerializer
+class DepartamentoViewSet(viewsets.ModelViewSet):
+    queryset = Departamento.objects.all()
+    serializer_class = DepartamentoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if Cargo.objects.filter(departamento=instance).exists():
+            return Response(
+                {"detail": "No se puede eliminar este departamento porque tiene cargos asociados."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)

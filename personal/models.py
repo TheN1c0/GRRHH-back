@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-
+from django.core.exceptions import ValidationError
 from PyPDF2 import PdfReader
 import nltk
 from nltk.tokenize import word_tokenize
@@ -18,9 +18,28 @@ class Departamento(models.Model):
 class Cargo(models.Model):
     nombre = models.CharField(max_length=100)
     departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE)
+    superior = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
+        if self.superior:
+            return f"{self.nombre} ({self.departamento.nombre}) → Jefe: {self.superior.nombre}"
         return f"{self.nombre} ({self.departamento.nombre})"
+
+    def clean(self):
+        # ❌ No puede ser su propio superior
+        if self.superior and self.superior == self:
+            raise ValidationError("Un cargo no puede ser su propio superior.")
+
+        # ❌ Validar jerarquía circular
+        superior = self.superior
+        while superior:
+            if superior == self:
+                raise ValidationError("Asignación inválida: se genera un ciclo jerárquico.")
+            superior = superior.superior
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Ejecuta las validaciones de clean()
+        super().save(*args, **kwargs)
 
 class Empleado(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
@@ -50,10 +69,15 @@ class ReglasContrato(models.Model):
 
     def __str__(self):
         return self.nombre
+class TipoContrato(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
 
 class Contrato(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
-    tipo_contrato = models.CharField(max_length=50, null=True, blank=True)
+    tipo_contrato = models.ForeignKey('TipoContrato', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2)
