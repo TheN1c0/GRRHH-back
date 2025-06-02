@@ -1,0 +1,28 @@
+[
+  {
+    "model": "personal.afp",
+    "pk": 1,
+    "fields": {
+      "nombre": "Habitat",
+      "porcentaje_cotizacion": 10.00
+    }
+  },
+  {
+    "model": "personal.salud",
+    "pk": 1,
+    "fields": {
+      "tipo": "FONASA",
+      "nombre": null,
+      "porcentaje_cotizacion": 7.00
+    }
+  },
+  {
+    "model": "personal.segurocesantia",
+    "pk": 1,
+    "fields": {
+      "nombre": "AFC Chile",
+      "porcentaje_trabajador": 0.60,
+      "porcentaje_empleador": 2.40
+    }
+  }
+]

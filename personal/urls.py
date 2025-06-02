@@ -11,7 +11,8 @@ from .views import (EmpleadoViewSet,
                     SaludViewSet, 
                     CesantiaViewSet,
                     ReglasContratoViewSet,
-                    DepartamentoViewSet
+                    DepartamentoViewSet,
+                    TipoContratoViewSet
 )
 
 router = DefaultRouter()
@@ -22,7 +23,8 @@ router.register(r'afp', AFPViewSet)
 router.register(r'salud', SaludViewSet)
 router.register(r'cesantia', CesantiaViewSet)
 router.register(r'reglas-contrato', ReglasContratoViewSet)
-router.register(r'personal/reglas-contrato', ReglasContratoViewSet)
+router.register(r'tipo-contrato', TipoContratoViewSet, basename='tipo-contrato')
+
 router.register(r'departamentos', DepartamentoViewSet, basename='departamentos')
 urlpatterns = [
     path('api/', include(router.urls)),

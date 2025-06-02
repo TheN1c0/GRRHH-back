@@ -1,0 +1,68 @@
+[
+  {
+    "model": "personal.reglascontrato",
+    "pk": 1,
+    "fields": {
+      "nombre": "Reglas Indefinido",
+      "requiere_cotizaciones": true,
+      "controla_asistencia": true,
+      "requiere_liquidacion": true,
+      "genera_vacaciones": true,
+      "afecta_antiguedad": true,
+      "requiere_firma_digital": false,
+      "aplica_seguro_invalidez": true
+    }
+  },
+  {
+    "model": "personal.reglascontrato",
+    "pk": 2,
+    "fields": {
+      "nombre": "Reglas Plazo Fijo",
+      "requiere_cotizaciones": true,
+      "controla_asistencia": true,
+      "requiere_liquidacion": true,
+      "genera_vacaciones": true,
+      "afecta_antiguedad": true,
+      "requiere_firma_digital": true,
+      "aplica_seguro_invalidez": true
+    }
+  },
+  {
+    "model": "personal.reglascontrato",
+    "pk": 3,
+    "fields": {
+      "nombre": "Reglas Honorarios",
+      "requiere_cotizaciones": false,
+      "controla_asistencia": false,
+      "requiere_liquidacion": false,
+      "genera_vacaciones": false,
+      "afecta_antiguedad": false,
+      "requiere_firma_digital": false,
+      "aplica_seguro_invalidez": false
+    }
+  },
+  {
+    "model": "personal.tipocontrato",
+    "pk": 1,
+    "fields": {
+      "nombre": "Indefinido",
+      "reglas": 1
+    }
+  },
+  {
+    "model": "personal.tipocontrato",
+    "pk": 2,
+    "fields": {
+      "nombre": "Plazo Fijo",
+      "reglas": 2
+    }
+  },
+  {
+    "model": "personal.tipocontrato",
+    "pk": 3,
+    "fields": {
+      "nombre": "Honorarios",
+      "reglas": 3
+    }
+  }
+]

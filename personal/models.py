@@ -9,16 +9,20 @@ import re
 
 # Create your models here.
 
+
 class Departamento(models.Model):
     nombre = models.CharField(max_length=100)
 
     def __str__(self):
         return self.nombre
 
+
 class Cargo(models.Model):
     nombre = models.CharField(max_length=100)
     departamento = models.ForeignKey(Departamento, on_delete=models.CASCADE)
-    superior = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
+    superior = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL
+    )
 
     def __str__(self):
         if self.superior:
@@ -34,15 +38,20 @@ class Cargo(models.Model):
         superior = self.superior
         while superior:
             if superior == self:
-                raise ValidationError("Asignación inválida: se genera un ciclo jerárquico.")
+                raise ValidationError(
+                    "Asignación inválida: se genera un ciclo jerárquico."
+                )
             superior = superior.superior
 
     def save(self, *args, **kwargs):
         self.full_clean()  # Ejecuta las validaciones de clean()
         super().save(*args, **kwargs)
 
+
 class Empleado(models.Model):
-    usuario = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    usuario = models.OneToOneField(
+        User, on_delete=models.CASCADE, null=True, blank=True
+    )
     primer_nombre = models.CharField(max_length=50, null=True, blank=True)
     otros_nombres = models.CharField(max_length=100, blank=True, null=True)  # opcional
     apellido_paterno = models.CharField(max_length=50, null=True, blank=True)
@@ -52,11 +61,19 @@ class Empleado(models.Model):
     direccion = models.TextField()
     telefono = models.CharField(max_length=20)
     cargo = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
-    empleador = models.ForeignKey('Empleador', on_delete=models.SET_NULL, null=True)
-    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados_creados')
+    empleador = models.ForeignKey("Empleador", on_delete=models.SET_NULL, null=True)
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="empleados_creados",
+    )
+
     def __str__(self):
         return f"{self.rut} - {self.cargo.nombre if self.cargo else 'Sin cargo'}"
-    
+
+
 class ReglasContrato(models.Model):
     nombre = models.CharField(max_length=100)
     requiere_cotizaciones = models.BooleanField(default=True)
@@ -69,26 +86,41 @@ class ReglasContrato(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
 class TipoContrato(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
+    reglas = models.OneToOneField(
+        ReglasContrato, on_delete=models.SET_NULL, null=True, blank=True
+    )
 
     def __str__(self):
         return self.nombre
 
+
 class Contrato(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
-    tipo_contrato = models.ForeignKey('TipoContrato', on_delete=models.SET_NULL, null=True, blank=True)
+    tipo_contrato = models.ForeignKey(
+        "TipoContrato", on_delete=models.SET_NULL, null=True, blank=True
+    )
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
     sueldo_base = models.DecimalField(max_digits=12, decimal_places=2)
-    reglas = models.ForeignKey(ReglasContrato, on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
-        nombre = self.empleado.usuario.get_full_name() if self.empleado and self.empleado.usuario else f"{self.empleado.rut}"
+        nombre = (
+            self.empleado.usuario.get_full_name()
+            if self.empleado and self.empleado.usuario
+            else f"{self.empleado.rut}"
+        )
         return f"Contrato de {nombre}"
+
+
 from django.db import models
 
+
 class Liquidacion(models.Model):
-    contrato = models.ForeignKey('Contrato', on_delete=models.CASCADE)
+    contrato = models.ForeignKey("Contrato", on_delete=models.CASCADE)
 
     # Campos congelados del empleado (para historial)
     rut_empleado = models.CharField(max_length=12, null=True, blank=True)
@@ -98,36 +130,40 @@ class Liquidacion(models.Model):
     fecha_ingreso = models.DateField(null=True, blank=True)
 
     # Datos previsionales congelados
-    nombre_afp = models.CharField(max_length=100,null=True)
-    porcentaje_afp = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+    nombre_afp = models.CharField(max_length=100, null=True)
+    porcentaje_afp = models.DecimalField(max_digits=5, decimal_places=2, null=True)
     comision_afp = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    
-    nombre_salud = models.CharField(max_length=100,null=True)
-    tipo_salud = models.CharField(max_length=10,null=True)
-    porcentaje_salud = models.DecimalField(max_digits=5, decimal_places=2,null=True)
 
-    nombre_seguro_cesantia = models.CharField(max_length=100,null=True)
-    porcentaje_cesantia_trabajador = models.DecimalField(max_digits=5, decimal_places=2,null=True)
-    porcentaje_cesantia_empleador = models.DecimalField(max_digits=5, decimal_places=2,null=True)
+    nombre_salud = models.CharField(max_length=100, null=True)
+    tipo_salud = models.CharField(max_length=10, null=True)
+    porcentaje_salud = models.DecimalField(max_digits=5, decimal_places=2, null=True)
+
+    nombre_seguro_cesantia = models.CharField(max_length=100, null=True)
+    porcentaje_cesantia_trabajador = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True
+    )
+    porcentaje_cesantia_empleador = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True
+    )
 
     # Datos congelados del empleador
-    razon_social_empleador = models.CharField(max_length=255,null=True)
-    rut_empleador = models.CharField(max_length=12,null=True)
-    direccion_empleador = models.CharField(max_length=255,null=True)
+    razon_social_empleador = models.CharField(max_length=255, null=True)
+    rut_empleador = models.CharField(max_length=12, null=True)
+    direccion_empleador = models.CharField(max_length=255, null=True)
 
     # Periodo trabajado
     periodo_inicio = models.DateField(null=True, blank=True)
-    periodo_termino = models.DateField( null=True, blank=True)
+    periodo_termino = models.DateField(null=True, blank=True)
 
     # Totales
-    sueldo_base = models.DecimalField(max_digits=12, decimal_places=2,null=True)
-    sueldo_bruto = models.DecimalField(max_digits=12, decimal_places=2,null=True)
-    gratificacion = models.DecimalField(max_digits=12, decimal_places=2,null=True)
-    total_haberes = models.DecimalField(max_digits=12, decimal_places=2,null=True)
-    total_descuentos = models.DecimalField(max_digits=12, decimal_places=2,null=True)
-    sueldo_liquido = models.DecimalField(max_digits=12, decimal_places=2,null=True)
+    sueldo_base = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    sueldo_bruto = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    gratificacion = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    total_haberes = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    total_descuentos = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    sueldo_liquido = models.DecimalField(max_digits=12, decimal_places=2, null=True)
 
-    documento = models.FileField(upload_to='liquidaciones/', blank=True, null=True)
+    documento = models.FileField(upload_to="liquidaciones/", blank=True, null=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     creado_en = models.DateTimeField(default=timezone.now)
 
@@ -139,7 +175,9 @@ class RegistroAsistencia(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
     fecha = models.DateField()
     presente = models.BooleanField(default=True)
-    horas_trabajadas = models.DecimalField(max_digits=4, decimal_places=2, default=8)  # Normalmente 8 horas
+    horas_trabajadas = models.DecimalField(
+        max_digits=4, decimal_places=2, default=8
+    )  # Normalmente 8 horas
     horas_extras = models.DecimalField(max_digits=4, decimal_places=2, default=0)
 
     def __str__(self):
@@ -153,60 +191,80 @@ class PermisoAusencia(models.Model):
     motivo = models.CharField(max_length=255)
     aprobado = models.BooleanField(default=False)
 
+
 # models.py (añadiendo a lo anterior)
+
 
 class AFP(models.Model):
     nombre = models.CharField(max_length=100)
-    porcentaje_cotizacion = models.DecimalField(max_digits=5, decimal_places=2)  # ejemplo: 10.00 (%)
+    porcentaje_cotizacion = models.DecimalField(
+        max_digits=5, decimal_places=2
+    )  # ejemplo: 10.00 (%)
 
     def __str__(self):
         return self.nombre
+
 
 class Salud(models.Model):
     TIPO_CHOICES = (
-        ('FONASA', 'Fonasa'),
-        ('ISAPRE', 'Isapre'),
+        ("FONASA", "Fonasa"),
+        ("ISAPRE", "Isapre"),
     )
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     nombre = models.CharField(max_length=100, null=True, blank=True)  # Solo para Isapre
-    porcentaje_cotizacion = models.DecimalField(max_digits=5, decimal_places=2, default=7.00)
+    porcentaje_cotizacion = models.DecimalField(
+        max_digits=5, decimal_places=2, default=7.00
+    )
 
     def __str__(self):
-        if self.tipo == 'FONASA':
-            return 'Fonasa'
+        if self.tipo == "FONASA":
+            return "Fonasa"
         return f"Isapre: {self.nombre}"
+
 
 class SeguroCesantia(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
-    porcentaje_trabajador = models.DecimalField(max_digits=5, decimal_places=2, default=0.60)
-    porcentaje_empleador = models.DecimalField(max_digits=5, decimal_places=2, default=2.40)
+    porcentaje_trabajador = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.60
+    )
+    porcentaje_empleador = models.DecimalField(
+        max_digits=5, decimal_places=2, default=2.40
+    )
 
     def __str__(self):
         return self.nombre
+
 
 class DatosPrevisionales(models.Model):
     empleado = models.OneToOneField(Empleado, on_delete=models.CASCADE)
     afp = models.ForeignKey(AFP, on_delete=models.SET_NULL, null=True)
     salud = models.ForeignKey(Salud, on_delete=models.SET_NULL, null=True)
-    seguro_cesantia = models.ForeignKey(SeguroCesantia, on_delete=models.SET_NULL, null=True)
+    seguro_cesantia = models.ForeignKey(
+        SeguroCesantia, on_delete=models.SET_NULL, null=True
+    )
 
     def __str__(self):
         return f"Previsión de {self.empleado.usuario.get_full_name()}"
 
+
 class TipoDescuento(models.Model):
     nombre = models.CharField(max_length=100)
-   
+
     def __str__(self):
         return self.nombre
 
+
 class OtroDescuento(models.Model):
-    liquidacion = models.ForeignKey(Liquidacion, on_delete=models.CASCADE, related_name='detalles_descuento')
+    liquidacion = models.ForeignKey(
+        Liquidacion, on_delete=models.CASCADE, related_name="detalles_descuento"
+    )
     tipo = models.ForeignKey(TipoDescuento, on_delete=models.SET_NULL, null=True)
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     descripcion = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.tipo.nombre}: {self.monto} - {self.liquidacion}"
+
 
 class Empleador(models.Model):
     nombre = models.CharField(max_length=255)
@@ -216,6 +274,7 @@ class Empleador(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.rut})"
 
+
 class ParametroSistema(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     valor_decimal = models.DecimalField(max_digits=12, decimal_places=2)
@@ -224,13 +283,16 @@ class ParametroSistema(models.Model):
     def __str__(self):
         return f"{self.nombre}: {self.valor_decimal} desde {self.fecha_vigencia}"
 
+
 class Haber(models.Model):
     TIPO_CHOICES = [
-        ('imponible', 'Imponible'),
-        ('no_imponible', 'No Imponible'),
+        ("imponible", "Imponible"),
+        ("no_imponible", "No Imponible"),
     ]
 
-    liquidacion = models.ForeignKey('Liquidacion', on_delete=models.CASCADE, related_name='haberes')
+    liquidacion = models.ForeignKey(
+        "Liquidacion", on_delete=models.CASCADE, related_name="haberes"
+    )
     nombre = models.CharField(max_length=100)  # Ej: "Bono Producción"
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
@@ -239,47 +301,54 @@ class Haber(models.Model):
         return f"{self.nombre} ({self.tipo}) - ${self.monto}"
 
 
-
-
 class Etiqueta(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.nombre
+
+
 class PalabraClave(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
-    categoria = models.CharField(max_length=50, choices=[
-        ('habilidad', 'Habilidad'),
-        ('certificacion', 'Certificación'),
-        ('area', 'Área'),
-    ])
+    categoria = models.CharField(
+        max_length=50,
+        choices=[
+            ("habilidad", "Habilidad"),
+            ("certificacion", "Certificación"),
+            ("area", "Área"),
+        ],
+    )
 
     def __str__(self):
         return f"{self.nombre} ({self.categoria})"
 
+
 try:
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find("tokenizers/punkt")
 except LookupError:
-    nltk.download('punkt')
+    nltk.download("punkt")
+
+
 class Postulante(models.Model):
     ESTADOS = [
-        ('postulado', 'Postulado'),
-        ('entrevista', 'Entrevista'),
-        ('evaluacion', 'Evaluación'),
-        ('seleccionado', 'Seleccionado'),
-        ('descartado', 'Descartado'),
+        ("postulado", "Postulado"),
+        ("entrevista", "Entrevista"),
+        ("evaluacion", "Evaluación"),
+        ("seleccionado", "Seleccionado"),
+        ("descartado", "Descartado"),
     ]
     rut = models.CharField(max_length=12, blank=True, null=True, unique=True)
     primer_nombre = models.CharField(max_length=50)
     otros_nombres = models.CharField(max_length=100, blank=True, null=True)
     apellido_paterno = models.CharField(max_length=50)
     apellido_materno = models.CharField(max_length=50)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
     direccion = models.TextField(blank=True, null=True)
     correo = models.EmailField()
     telefono = models.CharField(max_length=20, blank=True)
     cargo_postulado = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
-    curriculum = models.FileField(upload_to='postulantes/cv/', null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADOS, default='postulado')
+    curriculum = models.FileField(upload_to="postulantes/cv/", null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="postulado")
     fecha_postulacion = models.DateTimeField(default=timezone.now)
     etiquetas = models.ManyToManyField(Etiqueta, blank=True)
     prioridad = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
@@ -300,8 +369,8 @@ class Postulante(models.Model):
             for page in pdf.pages:
                 texto += page.extract_text().lower()
 
-            palabras_clave = PalabraClave.objects.values_list('nombre', flat=True)
-            palabras_cv = set(re.findall(r'\b\w+\b', texto))
+            palabras_clave = PalabraClave.objects.values_list("nombre", flat=True)
+            palabras_cv = set(re.findall(r"\b\w+\b", texto))
 
             for palabra in palabras_cv:
                 if palabra in palabras_clave:
@@ -323,6 +392,7 @@ class Postulante(models.Model):
         except Exception as e:
             print(f"Error procesando CV: {e}")
 
+
 class PalabraDesconocida(models.Model):
     palabra = models.CharField(max_length=100, unique=True)
     fecha_detectada = models.DateTimeField(auto_now_add=True)
@@ -331,4 +401,3 @@ class PalabraDesconocida(models.Model):
 
     def __str__(self):
         return self.palabra
-
