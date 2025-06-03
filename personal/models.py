@@ -171,27 +171,6 @@ class Liquidacion(models.Model):
         return f"Liquidación  {self.contrato.empleado.rut}"
 
 
-class RegistroAsistencia(models.Model):
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
-    fecha = models.DateField()
-    presente = models.BooleanField(default=True)
-    horas_trabajadas = models.DecimalField(
-        max_digits=4, decimal_places=2, default=8
-    )  # Normalmente 8 horas
-    horas_extras = models.DecimalField(max_digits=4, decimal_places=2, default=0)
-
-    def __str__(self):
-        return f"{self.empleado.usuario.username} - {self.fecha}"
-
-
-class PermisoAusencia(models.Model):
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField()
-    motivo = models.CharField(max_length=255)
-    aprobado = models.BooleanField(default=False)
-
-
 # models.py (añadiendo a lo anterior)
 
 
@@ -401,3 +380,92 @@ class PalabraDesconocida(models.Model):
 
     def __str__(self):
         return self.palabra
+
+
+# Bloque horario individual (por día)
+class Horario(models.Model):
+    DIAS_SEMANA = [
+        ("Lunes", "Lunes"),
+        ("Martes", "Martes"),
+        ("Miércoles", "Miércoles"),
+        ("Jueves", "Jueves"),
+        ("Viernes", "Viernes"),
+        ("Sábado", "Sábado"),
+        ("Domingo", "Domingo"),
+    ]
+
+    dia_semana = models.CharField(max_length=10, choices=DIAS_SEMANA)
+    hora_entrada = models.TimeField()
+    hora_salida = models.TimeField()
+
+    def __str__(self):
+        return f"{self.dia_semana} {self.hora_entrada} - {self.hora_salida}"
+
+
+# Grupo que agrupa varios bloques de horario
+class GrupoHorario(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True, null=True)
+    horarios = models.ManyToManyField(Horario, related_name="grupos")
+
+    def __str__(self):
+        return self.nombre
+
+
+# Asignación de grupo a empleado
+class HorarioEmpleado(models.Model):
+    empleado = models.ForeignKey("Empleado", on_delete=models.CASCADE)
+    grupo_horario = models.ForeignKey(GrupoHorario, on_delete=models.CASCADE)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.empleado} - {self.grupo_horario}"
+
+
+class Asistencia(models.Model):
+    empleado = models.ForeignKey("Empleado", on_delete=models.CASCADE)
+    fecha = models.DateField()
+
+    hora_entrada_real = models.TimeField(blank=True, null=True)
+    hora_salida_real = models.TimeField(blank=True, null=True)
+
+    minutos_atraso = models.PositiveIntegerField(default=0)
+    minutos_salida_anticipada = models.PositiveIntegerField(default=0)
+    horas_trabajadas = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    estado = models.CharField(
+        max_length=50,
+        choices=[
+            ("presente", "Presente"),
+            ("presente completo", "Presente (completo)"),
+            ("atraso", "Atraso"),
+            ("salida anticipada", "Salida anticipada"),
+            ("ausente", "Ausente"),
+            ("justificado", "Justificado"),
+            ("fuera de horario", "Fuera de horario"),
+        ],
+        default="presente",
+    )
+
+    observaciones = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ("empleado", "fecha")
+
+    def __str__(self):
+        return f"{self.fecha} - {self.empleado} ({self.estado})"
+
+
+class ExcepcionHorario(models.Model):
+    empleado = models.ForeignKey("Empleado", on_delete=models.CASCADE)
+    fecha = models.DateField()
+    hora_entrada = models.TimeField()
+    hora_salida = models.TimeField()
+    motivo = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        unique_together = ("empleado", "fecha")
+
+    def __str__(self):
+        return f"{self.fecha} - {self.empleado} (excepción)"

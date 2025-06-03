@@ -12,6 +12,9 @@ from .models import (
     ReglasContrato,
     Departamento,
     TipoContrato,
+    GrupoHorario,
+    Horario,
+    HorarioEmpleado,
 )
 
 
@@ -126,6 +129,7 @@ class PostulanteSerializer(serializers.ModelSerializer):
         model = Postulante
         fields = [
             "id",
+            "rut",
             "primer_nombre",
             "otros_nombres",
             "apellido_paterno",
@@ -173,3 +177,23 @@ class TipoContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoContrato
         fields = ["id", "nombre", "reglas", "reglas_nombre"]
+
+
+class HorarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Horario
+        fields = "__all__"
+
+
+class GrupoHorarioSerializer(serializers.ModelSerializer):
+    horarios = HorarioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = GrupoHorario
+        fields = "__all__"
+
+
+class HorarioEmpleadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HorarioEmpleado
+        fields = "__all__"

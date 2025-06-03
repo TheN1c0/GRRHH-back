@@ -13,11 +13,12 @@ from .models import (
     Liquidacion,
     OtroDescuento,
     ParametroSistema,
-    PermisoAusencia,
-    RegistroAsistencia,
     Salud,
     SeguroCesantia,
     TipoDescuento,
+    GrupoHorario,
+    Horario,
+    HorarioEmpleado,
 )
 from .serializers import *
 from rest_framework.views import APIView
@@ -180,7 +181,7 @@ class ReporteMensualView(APIView):
         mes = int(request.GET.get("mes"))
         anio = int(request.GET.get("anio"))
 
-        # Filtrar liquidaciones del mes
+        # Liquidaciones
         liquidaciones = Liquidacion.objects.filter(
             periodo_inicio__month=mes, periodo_inicio__year=anio
         )
@@ -200,6 +201,7 @@ class ReporteMensualView(APIView):
             | models.Q(fecha_fin__gte=datetime(anio, mes, 1))
         )
         total_empleados_contrato = contratos.count()
+
         porcentaje_pagado = (
             (empleados_pagados / total_empleados_contrato) * 100
             if total_empleados_contrato > 0
@@ -207,26 +209,17 @@ class ReporteMensualView(APIView):
         )
 
         # Ausentismo laboral
-        dias_mes = 30  # para simplificar, luego se puede usar calendar.monthrange
+        dias_mes = 30  # puedes reemplazar con calendar.monthrange(anio, mes)[1]
         total_posibles = total_empleados_contrato * dias_mes
-        asistencias = RegistroAsistencia.objects.filter(
-            fecha__month=mes, fecha__year=anio
+
+        asistencias = Asistencia.objects.filter(fecha__month=mes, fecha__year=anio)
+
+        asistencias_presentes = (
+            asistencias.exclude(estado="ausente").exclude(estado="justificado").count()
         )
-        asistencias_presentes = asistencias.filter(presente=True).count()
+        dias_justificados = asistencias.filter(estado="justificado").count()
 
-        permisos = PermisoAusencia.objects.filter(
-            fecha_inicio__lte=datetime(anio, mes, 28),
-            fecha_fin__gte=datetime(anio, mes, 1),
-            aprobado=True,
-        )
-
-        dias_permiso = 0
-        for permiso in permisos:
-            inicio = max(permiso.fecha_inicio, datetime(anio, mes, 1).date())
-            fin = min(permiso.fecha_fin, datetime(anio, mes, 28).date())
-            dias_permiso += (fin - inicio).days + 1
-
-        dias_ausentes = total_posibles - asistencias_presentes - dias_permiso
+        dias_ausentes = total_posibles - asistencias_presentes - dias_justificados
         ausentismo_laboral = (
             (dias_ausentes / total_posibles) * 100 if total_posibles > 0 else 0
         )
@@ -274,6 +267,9 @@ def contratar_postulante(request):
         empleador = Empleador.objects.get(pk=emp_data["empleador"])
     except Empleador.DoesNotExist:
         return Response({"error": "El empleador indicado no existe"}, status=400)
+
+    if not emp_data.get("fecha_nacimiento"):
+        return Response({"error": "La fecha de nacimiento es obligatoria"}, status=400)
 
     try:
         fecha_nac = datetime.strptime(emp_data["fecha_nacimiento"], "%Y-%m-%d").date()
@@ -379,3 +375,18 @@ class TipoContratoViewSet(viewsets.ModelViewSet):
     queryset = TipoContrato.objects.all()
     serializer_class = TipoContratoSerializer
     permission_classes = [IsAuthenticated]
+
+
+class GrupoHorarioViewSet(viewsets.ModelViewSet):
+    queryset = GrupoHorario.objects.all()
+    serializer_class = GrupoHorarioSerializer
+
+
+class HorarioViewSet(viewsets.ModelViewSet):
+    queryset = Horario.objects.all()
+    serializer_class = HorarioSerializer
+
+
+class HorarioEmpleadoViewSet(viewsets.ModelViewSet):
+    queryset = HorarioEmpleado.objects.all()
+    serializer_class = HorarioEmpleadoSerializer
