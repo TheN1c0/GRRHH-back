@@ -186,7 +186,9 @@ class HorarioSerializer(serializers.ModelSerializer):
 
 
 class GrupoHorarioSerializer(serializers.ModelSerializer):
-    horarios = HorarioSerializer(many=True, read_only=True)
+    horarios = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Horario.objects.all()
+    )
 
     class Meta:
         model = GrupoHorario
