@@ -382,7 +382,6 @@ class PalabraDesconocida(models.Model):
         return self.palabra
 
 
-# Bloque horario individual (por día)
 class Horario(models.Model):
     DIAS_SEMANA = [
         ("Lunes", "Lunes"),
@@ -393,19 +392,17 @@ class Horario(models.Model):
         ("Sábado", "Sábado"),
         ("Domingo", "Domingo"),
     ]
-
-    dia_semana = models.CharField(max_length=10, choices=DIAS_SEMANA)
+    dia_semana = models.CharField(max_length=20, choices=DIAS_SEMANA)
     hora_entrada = models.TimeField()
     hora_salida = models.TimeField()
 
     def __str__(self):
-        return f"{self.dia_semana} {self.hora_entrada} - {self.hora_salida}"
+        return f"{self.dia} {self.hora_inicio} - {self.hora_fin}"
 
 
-# Grupo que agrupa varios bloques de horario
 class GrupoHorario(models.Model):
     nombre = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True, null=True)
+    descripcion = models.TextField(blank=True)
     horarios = models.ManyToManyField(Horario, related_name="grupos")
 
     def __str__(self):
