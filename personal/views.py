@@ -380,13 +380,75 @@ class TipoContratoViewSet(viewsets.ModelViewSet):
 class GrupoHorarioViewSet(viewsets.ModelViewSet):
     queryset = GrupoHorario.objects.all()
     serializer_class = GrupoHorarioSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class HorarioViewSet(viewsets.ModelViewSet):
     queryset = Horario.objects.all()
     serializer_class = HorarioSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class HorarioEmpleadoViewSet(viewsets.ModelViewSet):
     queryset = HorarioEmpleado.objects.all()
     serializer_class = HorarioEmpleadoSerializer
+    permission_classes = [IsAuthenticated]
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def actualizar_horarios_empleados(request):
+    actualizaciones = request.data
+
+    if not isinstance(actualizaciones, list):
+        return Response(
+            {"error": "Se espera una lista de objetos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    errores = []
+    actualizados = []
+
+    for item in actualizaciones:
+        try:
+            instancia = HorarioEmpleado.objects.get(pk=item["id"])
+            serializer = HorarioEmpleadoSerializer(instancia, data=item, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                actualizados.append(serializer.data)
+            else:
+                errores.append({"id": item["id"], "errores": serializer.errors})
+        except HorarioEmpleado.DoesNotExist:
+            errores.append({"id": item["id"], "error": "No encontrado"})
+
+    return Response(
+        {"actualizados": actualizados, "errores": errores}, status=status.HTTP_200_OK
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def crear_multiples_horarios_empleado(request):
+    datos = request.data
+
+    if not isinstance(datos, list):
+        return Response(
+            {"error": "Se espera una lista de asignaciones"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    errores = []
+    creados = []
+
+    for item in datos:
+        serializer = HorarioEmpleadoSerializer(data=item)
+        if serializer.is_valid():
+            serializer.save()
+            creados.append(serializer.data)
+        else:
+            errores.append({"data": item, "errores": serializer.errors})
+
+    return Response(
+        {"creados": creados, "errores": errores},
+        status=status.HTTP_201_CREATED if creados else status.HTTP_400_BAD_REQUEST,
+    )

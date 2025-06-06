@@ -17,6 +17,8 @@ from .views import (
     GrupoHorarioViewSet,
     HorarioViewSet,
     HorarioEmpleadoViewSet,
+    actualizar_horarios_empleados,
+    crear_multiples_horarios_empleado,
 )
 
 router = DefaultRouter()
@@ -44,4 +46,14 @@ urlpatterns = [
     path("api/contratos/", ListaContratosView.as_view(), name="lista-contratos"),
     path("api/reporte-mensual/", ReporteMensualView.as_view(), name="reporte-mensual"),
     path("api/contratar/", contratar_postulante, name="contratar_postulante"),
+    path(
+        "api/horario-empleado/editar-multiples/",
+        actualizar_horarios_empleados,
+        name="editar_horarios_empleados",
+    ),
+    path(
+        "api/horario-empleado/crear-multiples/",
+        crear_multiples_horarios_empleado,
+        name="crear_multiples_horarios_empleado",
+    ),
 ]
