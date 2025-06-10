@@ -25,6 +25,12 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     )
     nombre_usuario = serializers.SerializerMethodField()
 
+    grupo_nombre = serializers.SerializerMethodField()
+    grupo_id = serializers.SerializerMethodField()
+    es_personalizado = serializers.SerializerMethodField()
+    fecha_inicio = serializers.SerializerMethodField()
+    fecha_fin = serializers.SerializerMethodField()
+
     class Meta:
         model = Empleado
         fields = [
@@ -42,12 +48,44 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             "nombre_cargo",
             "nombre_departamento",
             "nombre_usuario",
+            "grupo_nombre",
+            "grupo_id",
+            "es_personalizado",
+            "fecha_inicio",
+            "fecha_fin",
         ]
 
     def get_nombre_usuario(self, obj):
         if obj.usuario:
             return obj.usuario.get_full_name()
         return "Sin usuario asignado"
+
+    def _get_ultimo_horario(self, obj):
+        return obj.horarioempleado_set.order_by("-fecha_inicio").first()
+
+    def get_grupo_nombre(self, obj):
+        horario = self._get_ultimo_horario(obj)
+        return horario.grupo_horario.nombre if horario else None
+
+    def get_grupo_id(self, obj):
+        horario = self._get_ultimo_horario(obj)
+        return horario.grupo_horario.id if horario else None
+
+    def get_es_personalizado(self, obj):
+        horario = self._get_ultimo_horario(obj)
+        return (
+            getattr(horario.grupo_horario, "es_personalizado", False)
+            if horario
+            else None
+        )
+
+    def get_fecha_inicio(self, obj):
+        horario = self._get_ultimo_horario(obj)
+        return horario.fecha_inicio if horario else None
+
+    def get_fecha_fin(self, obj):
+        horario = self._get_ultimo_horario(obj)
+        return horario.fecha_fin if horario else None
 
 
 class CargoSerializer(serializers.ModelSerializer):

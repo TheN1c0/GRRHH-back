@@ -52,7 +52,7 @@ urlpatterns = [
         name="editar_horarios_empleados",
     ),
     path(
-        "api/horario-empleado/crear-multiples/",
+        "api/asignacion-horaria-masiva/",
         crear_multiples_horarios_empleado,
         name="crear_multiples_horarios_empleado",
     ),

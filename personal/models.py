@@ -415,6 +415,7 @@ class HorarioEmpleado(models.Model):
     grupo_horario = models.ForeignKey(GrupoHorario, on_delete=models.CASCADE)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(blank=True, null=True)
+    es_personalizado = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.empleado} - {self.grupo_horario}"
