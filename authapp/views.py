@@ -5,33 +5,41 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import RegisterSerializer
 import json
+from .models import HistorialAcceso
+from rest_framework.decorators import api_view, permission_classes
+
+
 class RegisterView(APIView):
     def get(self, request, *args, **kwargs):
         # Respuesta de prueba para confirmar que la URL está funcionando
-        return Response({"message": "El endpoint de registro está activo"}, status=status.HTTP_200_OK)
-    
-    
+        return Response(
+            {"message": "El endpoint de registro está activo"},
+            status=status.HTTP_200_OK,
+        )
+
     def post(self, request):
-        """ serializer = RegisterSerializer(data=request.data)
+        """serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'Usuario creado'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) """
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)"""
         if request.method == "POST":
             try:
                 data = json.loads(request.body)
             except json.JSONDecodeError:
                 return JsonResponse({"error": "JSON inválido"}, status=400)
-            
+
             # Imprime en consola para verificar los datos recibidos
             print("Datos recibidos:", data)
-        
-            return JsonResponse({"message": "Datos recibidos correctamente", "data": data}, status=200)
+
+            return JsonResponse(
+                {"message": "Datos recibidos correctamente", "data": data}, status=200
+            )
         else:
             return JsonResponse({"error": "Solo se permite el método POST"}, status=405)
-        
-    
-from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
+
+
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
@@ -39,105 +47,150 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .auth_backend import CookieJWTAuthentication
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+
 User = get_user_model()
 import logging
+
 logger = logging.getLogger(__name__)
+
+
 class LoginView(APIView):
     authentication_classes = []  # 👈 Este cambio es clave
     permission_classes = [AllowAny]  # Permitir acceso libre
-    
+
     def post(self, request):
-        user_input = request.data.get('username')  # puede ser email o username
-        password = request.data.get('password')
+        user_input = request.data.get("username")  # puede ser email o username
+        password = request.data.get("password")
         logger.info(f"Usuario recibido: {user_input}")
         logger.info(f"Contraseña recibida: {password}")
         # Buscar por email si es un correo
-        if '@' in user_input:
+        if "@" in user_input:
             try:
                 user_obj = User.objects.get(email=user_input)
                 username = user_obj.username
             except User.DoesNotExist:
-                return Response({'detail': 'Email no registrado'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Email no registrado"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         else:
             username = user_input
 
         user = authenticate(request, username=username, password=password)
 
         if user:
+            registrar_acceso(request, user)
             refresh = RefreshToken.for_user(user)
-            response = Response({'refresh': str(refresh)}, status=status.HTTP_200_OK)
+            response = Response(
+                {"refresh": str(refresh), "username": user.username},
+                status=status.HTTP_200_OK,
+            )
             response.set_cookie(
-                key='access_token',
+                key="access_token",
                 value=str(refresh.access_token),
                 httponly=True,
                 secure=False,
-                samesite='Lax',
-                path='/'
+                samesite="Lax",
+                path="/",
             )
-            
-             # 🔐 Guardar refresh_token como cookie también
+
+            # 🔐 Guardar refresh_token como cookie también
             response.set_cookie(
-                key='refresh_token',
+                key="refresh_token",
                 value=str(refresh),
                 httponly=True,
                 secure=False,  # Cambiar a True en producción
-                samesite='Lax',
-                path='/auth/api/refresh/'
+                samesite="Lax",
+                path="/auth/api/refresh/",
             )
 
-            
-            
             return response
         else:
-            response = Response({'detail': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
-            response.delete_cookie('access_token')
+            response = Response(
+                {"detail": "Credenciales inválidas"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+            response.delete_cookie("access_token")
 
             return response
-
-
-
 
 
 class DashboardView(APIView):
-    authentication_classes = [CookieJWTAuthentication]#se llama por defecto, no la invocamos
+    authentication_classes = [
+        CookieJWTAuthentication
+    ]  # se llama por defecto, no la invocamos
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({
-            'message': f'Bienvenido {request.user.username}',
-            'usuario_id': request.user.id
-        })
+        return Response(
+            {
+                "message": f"Bienvenido {request.user.username}",
+                "usuario_id": request.user.id,
+            }
+        )
+
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get('refresh_token')
+        refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
-            return Response({'detail': 'Refresh token not found in cookies'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Refresh token not found in cookies"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        serializer = self.get_serializer(data={'refresh': refresh_token})
+        serializer = self.get_serializer(data={"refresh": refresh_token})
 
         try:
             serializer.is_valid(raise_exception=True)
         except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
-        access_token = serializer.validated_data.get('access')
+        access_token = serializer.validated_data.get("access")
 
         # Creamos la respuesta
         response = Response({"access": access_token}, status=status.HTTP_200_OK)
 
         # ✅ Actualizamos la cookie del access_token
         response.set_cookie(
-            key='access_token',
+            key="access_token",
             value=access_token,
             httponly=True,
             secure=False,  # cambia a True en producción
-            samesite='Lax',
-            path='/'
+            samesite="Lax",
+            path="/",
         )
 
         return response
+
+
+def registrar_acceso(request, usuario):
+    ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
+    user_agent = request.META.get("HTTP_USER_AGENT", "")
+    HistorialAcceso.objects.create(usuario=usuario, ip=ip, user_agent=user_agent)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def ultimo_acceso(request):
+    accesos = HistorialAcceso.objects.filter(usuario=request.user).order_by("-fecha")[
+        :3
+    ]  # 👈 obtenemos los 3 últimos accesos
+
+    if not accesos:
+        return Response({"error": "No hay accesos registrados"}, status=404)
+
+    data = [
+        {
+            "ip": acc.ip,
+            "fecha": acc.fecha.strftime("%Y-%m-%d %H:%M"),
+            "user_agent": acc.user_agent[:120],
+        }
+        for acc in accesos
+    ]
+
+    return Response(data)
