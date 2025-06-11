@@ -15,6 +15,7 @@ from .models import (
     GrupoHorario,
     Horario,
     HorarioEmpleado,
+    HistorialCambio,
 )
 
 
@@ -242,4 +243,12 @@ class GrupoHorarioSerializer(serializers.ModelSerializer):
 class HorarioEmpleadoSerializer(serializers.ModelSerializer):
     class Meta:
         model = HorarioEmpleado
+        fields = "__all__"
+
+
+class HistorialCambioSerializer(serializers.ModelSerializer):
+    usuario = serializers.StringRelatedField()
+
+    class Meta:
+        model = HistorialCambio
         fields = "__all__"

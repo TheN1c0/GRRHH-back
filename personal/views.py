@@ -19,6 +19,7 @@ from .models import (
     GrupoHorario,
     Horario,
     HorarioEmpleado,
+    HistorialCambio,
 )
 from .serializers import *
 from rest_framework.views import APIView
@@ -42,9 +43,10 @@ from .models import (
     Cargo,
     Empleador,
 )
+from personal.utils.mixins import HistorialMixin
 
 
-class EmpleadoViewSet(viewsets.ModelViewSet):
+class EmpleadoViewSet(HistorialMixin, viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
@@ -467,3 +469,9 @@ def eliminar_varios_horarios_empleado(request):
     eliminados = HorarioEmpleado.objects.filter(empleado_id__in=empleados).delete()
 
     return Response({"mensaje": f"{eliminados[0]} asignaciones eliminadas"})
+
+
+class HistorialCambioViewSet(viewsets.ReadOnlyModelViewSet):  # solo lectura
+    queryset = HistorialCambio.objects.all().order_by("-fecha")
+    serializer_class = HistorialCambioSerializer
+    permission_classes = [IsAuthenticated]

@@ -10,6 +10,20 @@ import re
 # Create your models here.
 
 
+class HistorialCambio(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    accion = models.CharField(
+        max_length=100
+    )  # 'Crear empleado', 'Eliminar contrato', etc.
+    detalle = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return (
+            f"{self.usuario} - {self.accion} ({self.fecha.strftime('%Y-%m-%d %H:%M')})"
+        )
+
+
 class Departamento(models.Model):
     nombre = models.CharField(max_length=100)
 

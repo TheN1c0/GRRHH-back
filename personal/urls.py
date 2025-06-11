@@ -20,6 +20,7 @@ from .views import (
     actualizar_horarios_empleados,
     crear_multiples_horarios_empleado,
     eliminar_varios_horarios_empleado,
+    HistorialCambioViewSet,
 )
 
 router = DefaultRouter()
@@ -36,7 +37,9 @@ router.register(r"departamentos", DepartamentoViewSet, basename="departamentos")
 router.register(r"grupo-horarios", GrupoHorarioViewSet)
 router.register(r"horarios", HorarioViewSet)
 router.register(r"horario-empleado", HorarioEmpleadoViewSet)
-
+router.register(
+    r"historial-cambios", HistorialCambioViewSet, basename="historial-cambios"
+)
 urlpatterns = [
     path("api/", include(router.urls)),
     path(
