@@ -30,6 +30,7 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     es_personalizado = serializers.SerializerMethodField()
     fecha_inicio = serializers.SerializerMethodField()
     fecha_fin = serializers.SerializerMethodField()
+    horario_empleado_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Empleado
@@ -53,6 +54,7 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             "es_personalizado",
             "fecha_inicio",
             "fecha_fin",
+            "horario_empleado_id",
         ]
 
     def get_nombre_usuario(self, obj):
@@ -86,6 +88,10 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     def get_fecha_fin(self, obj):
         horario = self._get_ultimo_horario(obj)
         return horario.fecha_fin if horario else None
+
+    def get_horario_empleado_id(self, obj):
+        horario = obj.horarioempleado_set.order_by("-fecha_inicio").first()
+        return horario.id if horario else None
 
 
 class CargoSerializer(serializers.ModelSerializer):

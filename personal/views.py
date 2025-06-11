@@ -29,7 +29,7 @@ from xhtml2pdf import pisa
 from io import BytesIO
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from django.utils.timezone import datetime
+from django.utils.timezone import datetime, now
 from django.db import models
 from rest_framework.decorators import api_view, permission_classes
 from .models import (
@@ -452,3 +452,18 @@ def crear_multiples_horarios_empleado(request):
         {"creados": creados, "errores": errores},
         status=status.HTTP_201_CREATED if creados else status.HTTP_400_BAD_REQUEST,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def eliminar_varios_horarios_empleado(request):
+    empleados = request.data.get("empleados", [])
+
+    if not isinstance(empleados, list) or not all(
+        isinstance(id, int) for id in empleados
+    ):
+        return Response({"error": "Formato inválido"}, status=400)
+
+    eliminados = HorarioEmpleado.objects.filter(empleado_id__in=empleados).delete()
+
+    return Response({"mensaje": f"{eliminados[0]} asignaciones eliminadas"})

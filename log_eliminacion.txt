@@ -1,0 +1,10 @@
+[2025-06-11 02:41:10.110957+00:00] Vista ejecutada con ids: [5]
+[2025-06-11 02:41:10.124970+00:00] Eliminación completada.
+[2025-06-11 02:41:31.328391+00:00] Vista ejecutada con ids: [3]
+[2025-06-11 02:41:31.337039+00:00] Eliminación completada.
+[2025-06-11 02:41:41.974119+00:00] Vista ejecutada con ids: [5]
+[2025-06-11 02:41:41.984422+00:00] Eliminación completada.
+[2025-06-11 02:48:16.274100+00:00] Vista ejecutada con ids: [5]
+[2025-06-11 02:48:16.283060+00:00] Eliminación completada.
+[2025-06-11 02:48:28.980879+00:00] Vista ejecutada con ids: [3, 5]
+[2025-06-11 02:48:28.992368+00:00] Eliminación completada.

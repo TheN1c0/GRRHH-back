@@ -19,6 +19,7 @@ from .views import (
     HorarioEmpleadoViewSet,
     actualizar_horarios_empleados,
     crear_multiples_horarios_empleado,
+    eliminar_varios_horarios_empleado,
 )
 
 router = DefaultRouter()
@@ -56,4 +57,5 @@ urlpatterns = [
         crear_multiples_horarios_empleado,
         name="crear_multiples_horarios_empleado",
     ),
+    path("api/horario-empleado-eliminar-multiples/", eliminar_varios_horarios_empleado),
 ]
