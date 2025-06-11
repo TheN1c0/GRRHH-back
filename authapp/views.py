@@ -3,10 +3,11 @@ from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, NotaSerializer
 import json
 from .models import HistorialAcceso
 from rest_framework.decorators import api_view, permission_classes
+from .models import Nota
 
 
 class RegisterView(APIView):
@@ -194,3 +195,42 @@ def ultimo_acceso(request):
     ]
 
     return Response(data)
+
+
+@api_view(["GET", "POST", "DELETE", "PUT"])
+@permission_classes([IsAuthenticated])
+def notas_usuario(request):
+    user = request.user
+
+    if request.method == "GET":
+        notas = Nota.objects.filter(usuario=user).order_by("-fecha_creacion")[:5]
+        serializer = NotaSerializer(notas, many=True)
+        return Response(serializer.data)
+
+    if request.method == "POST":
+        serializer = NotaSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(usuario=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    if request.method == "DELETE":
+        nota_id = request.data.get("id")
+        try:
+            nota = Nota.objects.get(id=nota_id, usuario=user)
+            nota.delete()
+            return Response({"success": True})
+        except Nota.DoesNotExist:
+            return Response({"error": "Nota no encontrada"}, status=404)
+
+    if request.method == "PUT":
+        nota_id = request.data.get("id")
+        try:
+            nota = Nota.objects.get(id=nota_id, usuario=user)
+            serializer = NotaSerializer(nota, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except Nota.DoesNotExist:
+            return Response({"error": "Nota no encontrada"}, status=404)

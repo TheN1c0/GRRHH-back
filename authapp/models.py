@@ -22,3 +22,12 @@ class HistorialAcceso(models.Model):
 
     def __str__(self):
         return f"{self.usuario.username} - {self.fecha}"
+
+
+class Nota(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    contenido = models.TextField()
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Nota de {self.usuario.username} - {self.fecha_creacion.strftime('%Y-%m-%d %H:%M')}"

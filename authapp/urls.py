@@ -5,6 +5,7 @@ from .views import (
     DashboardView,
     CookieTokenRefreshView,
     ultimo_acceso,
+    notas_usuario,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("api/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh_cookie"),
     path("api/ultimo-acceso/", ultimo_acceso),
+    path("api/notas/", notas_usuario),
 ]
