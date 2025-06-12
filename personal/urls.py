@@ -21,6 +21,8 @@ from .views import (
     crear_multiples_horarios_empleado,
     eliminar_varios_horarios_empleado,
     HistorialCambioViewSet,
+    desvincular_empleado,
+    cambiar_estado_empleado,
 )
 
 router = DefaultRouter()
@@ -50,6 +52,14 @@ urlpatterns = [
     path("api/contratos/", ListaContratosView.as_view(), name="lista-contratos"),
     path("api/reporte-mensual/", ReporteMensualView.as_view(), name="reporte-mensual"),
     path("api/contratar/", contratar_postulante, name="contratar_postulante"),
+    path(
+        "api/desvincular_empleado/", desvincular_empleado, name="desvincular_empleado"
+    ),
+    path(
+        "api/cambiar_estado_empleado/",
+        cambiar_estado_empleado,
+        name="cambiar_estado_empleado",
+    ),
     path(
         "api/horario-empleado/editar-multiples/",
         actualizar_horarios_empleados,

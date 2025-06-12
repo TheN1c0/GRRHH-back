@@ -46,10 +46,22 @@ from .models import (
 from personal.utils.mixins import HistorialMixin
 
 
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .pagination import EmpleadoPagination
+
+
 class EmpleadoViewSet(HistorialMixin, viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
     permission_classes = [IsAuthenticated]
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+
+    search_fields = ["rut", "primer_nombre", "apellido_paterno", "apellido_materno"]
+
+    filterset_fields = ["cargo", "empleador", "cargo__departamento", "estado"]
+    pagination_class = EmpleadoPagination
 
 
 class CargoViewSet(viewsets.ModelViewSet):
@@ -475,3 +487,41 @@ class HistorialCambioViewSet(viewsets.ReadOnlyModelViewSet):  # solo lectura
     queryset = HistorialCambio.objects.all().order_by("-fecha")
     serializer_class = HistorialCambioSerializer
     permission_classes = [IsAuthenticated]
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def desvincular_empleado(request):
+    empleado_id = request.data.get("id")
+    if not empleado_id:
+        return Response({"error": "ID de empleado requerido."}, status=400)
+
+    try:
+        empleado = Empleado.objects.get(pk=empleado_id)
+        empleado.estado = "inactivo"
+        empleado.save()
+        return Response({"mensaje": "Empleado desvinculado correctamente."}, status=200)
+    except Empleado.DoesNotExist:
+        return Response({"error": "Empleado no encontrado."}, status=404)
+
+
+""" Reactivar empleado """
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cambiar_estado_empleado(request):
+    empleado_id = request.data.get("id")
+    if not empleado_id:
+        return Response({"error": "ID de empleado requerido."}, status=400)
+
+    try:
+        empleado = Empleado.objects.get(pk=empleado_id)
+        nuevo_estado = "inactivo" if empleado.estado == "activo" else "activo"
+        empleado.estado = nuevo_estado
+        empleado.save()
+        return Response(
+            {"mensaje": f"Empleado marcado como {nuevo_estado}."}, status=200
+        )
+    except Empleado.DoesNotExist:
+        return Response({"error": "Empleado no encontrado."}, status=404)

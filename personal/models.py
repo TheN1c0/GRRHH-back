@@ -76,6 +76,11 @@ class Empleado(models.Model):
     telefono = models.CharField(max_length=20)
     cargo = models.ForeignKey(Cargo, on_delete=models.SET_NULL, null=True)
     empleador = models.ForeignKey("Empleador", on_delete=models.SET_NULL, null=True)
+    ESTADOS = [
+        ("activo", "Activo"),
+        ("inactivo", "Inactivo"),
+    ]
+    estado = models.CharField(max_length=10, choices=ESTADOS, default="activo")
     creado_por = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

@@ -56,6 +56,7 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             "fecha_inicio",
             "fecha_fin",
             "horario_empleado_id",
+            "estado",
         ]
 
     def get_nombre_usuario(self, obj):
