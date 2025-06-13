@@ -9,24 +9,25 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
+import os
 from datetime import timedelta
 from pathlib import Path
-
+from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(dotenv_path=BASE_DIR / '.env.local')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-l(c$%p6v7glzz&*&ab(m-cf^*m0asfq(yr141htxiz5g@*)c*f'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
 
 # Application definition
 
@@ -55,13 +56,10 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True') == 'True'
 
-CORS_ALLOW_CREDENTIALS = True  # ✅ permite cookies
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",  # ✅ este debe ser tu frontend exacto
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 
 ROOT_URLCONF = 'grrhhbackend.urls'
 
@@ -93,11 +91,11 @@ WSGI_APPLICATION = 'grrhhbackend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydatabase',
-        'USER': 'user',
-        'PASSWORD': 'password',
-        'HOST': 'db',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 
@@ -155,13 +153,13 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'AUTH_COOKIE': 'access_token',  # nombre de la cookie
-    'AUTH_COOKIE_SECURE': False,    # True en producción con HTTPS
-    'AUTH_COOKIE_HTTP_ONLY': True,
-    'AUTH_COOKIE_PATH': '/',
-    'AUTH_COOKIE_SAMESITE': 'Lax',
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('JWT_ACCESS_LIFETIME_MINUTES', 5))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_LIFETIME_DAYS', 1))),
+    'AUTH_COOKIE': os.getenv('JWT_AUTH_COOKIE', 'access_token'),
+    'AUTH_COOKIE_SECURE': os.getenv('JWT_AUTH_COOKIE_SECURE', 'False') == 'True',
+    'AUTH_COOKIE_HTTP_ONLY': os.getenv('JWT_AUTH_COOKIE_HTTP_ONLY', 'True') == 'True',
+    'AUTH_COOKIE_PATH': os.getenv('JWT_AUTH_COOKIE_PATH', '/'),
+    'AUTH_COOKIE_SAMESITE': os.getenv('JWT_AUTH_COOKIE_SAMESITE', 'Lax'),
 }
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',  # 👈 NECESARIO para que funcione authenticate()

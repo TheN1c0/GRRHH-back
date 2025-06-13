@@ -22,6 +22,8 @@ services:
     restart: always
     depends_on:
       - db
+    env_file:
+      - .env.local
     environment:
       DATABASE_URL: postgres://user:password@db:5432/mydatabase
     ports:

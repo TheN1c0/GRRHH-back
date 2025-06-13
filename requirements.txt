@@ -7,3 +7,4 @@ xhtml2pdf
 PyPDF2
 nltk
 django-filter==25.1
+python-dotenv

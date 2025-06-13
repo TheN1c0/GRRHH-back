@@ -1,5 +1,5 @@
 from django.urls import path, include
-
+from django.http import JsonResponse
 """
 URL configuration for grrhhbackend project.
 
@@ -23,4 +23,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('authapp.urls')),
     path('personal/', include('personal.urls')),
+    
+    path('', lambda request: JsonResponse({'mensaje': 'Servidor Django funcionando correctamente ✅'})),
 ]
