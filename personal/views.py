@@ -20,6 +20,7 @@ from .models import (
     Horario,
     HorarioEmpleado,
     HistorialCambio,
+    Asistencia,
 )
 from .serializers import *
 from rest_framework.views import APIView
