@@ -3,11 +3,11 @@ from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import RegisterSerializer, NotaSerializer
+from .serializers import RegisterSerializer, NotaSerializer, MiCuentaSerializer, PerfilUsuarioSerializer
 import json
-from .models import HistorialAcceso
+from .models import HistorialAcceso,  PerfilUsuario, Nota
 from rest_framework.decorators import api_view, permission_classes
-from .models import Nota
+
 
 
 class RegisterView(APIView):
@@ -40,18 +40,20 @@ class RegisterView(APIView):
             return JsonResponse({"error": "Solo se permite el método POST"}, status=405)
 
 
+
+
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
-from rest_framework import status
+
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework.views import APIView
-from rest_framework.response import Response
+
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .auth_backend import CookieJWTAuthentication
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-
+from django.core.mail import send_mail
 User = get_user_model()
 import logging
 
@@ -59,11 +61,11 @@ logger = logging.getLogger(__name__)
 
 
 class LoginView(APIView):
-    authentication_classes = []  # 👈 Este cambio es clave
-    permission_classes = [AllowAny]  # Permitir acceso libre
+    authentication_classes = []  
+    permission_classes = [AllowAny]  
 
     def post(self, request):
-        user_input = request.data.get("username")  # puede ser email o username
+        user_input = request.data.get("username")  
         password = request.data.get("password")
         logger.info(f"Usuario recibido: {user_input}")
         logger.info(f"Contraseña recibida: {password}")
@@ -118,7 +120,16 @@ class LoginView(APIView):
 
             return response
 
+class LogoutView(APIView):
+    def post(self, request):
+        response = Response({"message": "Sesión cerrada correctamente"}, status=status.HTTP_200_OK)
 
+        # Eliminar cookies
+        response.delete_cookie("access_token", path="/")
+        response.delete_cookie("refresh_token", path="/auth/api/refresh/")
+
+        return response
+    
 class DashboardView(APIView):
     authentication_classes = [
         CookieJWTAuthentication
@@ -244,3 +255,53 @@ def notas_usuario(request):
             return Response(serializer.errors, status=400)
         except Nota.DoesNotExist:
             return Response({"error": "Nota no encontrada"}, status=404)
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def mi_cuenta(request):
+    usuario = request.user
+
+    if request.method == "GET":
+        serializer = MiCuentaSerializer(usuario)
+        return Response(serializer.data)
+
+    elif request.method == "PUT":
+        serializer = MiCuentaSerializer(usuario, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reenviar_verificacion_correo(request):
+    user = request.user
+    perfil, creado = PerfilUsuario.objects.get_or_create(user=user)
+
+    if not perfil.nuevo_email:
+        return Response({"detail": "No hay un correo pendiente de verificación."}, status=400)
+
+    # Enviar correo con un enlace falso de verificación (lógica real puede incluir token único)
+    send_mail(
+        subject="Verifica tu nuevo correo",
+        message=f"Hola {user.first_name}, verifica tu correo visitando el enlace: https://tuapp.com/verificar-email/{user.id}/",
+        from_email="no-reply@tuapp.com",
+        recipient_list=[perfil.nuevo_email],
+    )
+
+    return Response({"detail": "Correo de verificación enviado."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reenviar_verificacion_telefono(request):
+    user = request.user
+    perfil, creado = PerfilUsuario.objects.get_or_create(user=user)
+
+    if not perfil.nuevo_telefono:
+        return Response({"detail": "No hay un número pendiente de verificación."}, status=400)
+
+    # Simulación de envío SMS
+    print(f"📲 SMS enviado a {perfil.nuevo_telefono}: Tu código de verificación es 123456")
+
+    return Response({"detail": "Mensaje SMS enviado (simulado)."})
