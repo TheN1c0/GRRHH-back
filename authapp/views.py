@@ -93,8 +93,8 @@ class LoginView(APIView):
                 key="access_token",
                 value=str(refresh.access_token),
                 httponly=True,
-                secure=False,
-                samesite="Lax",
+                secure=True,
+                samesite="None",
                 path="/",
             )
 
@@ -103,8 +103,8 @@ class LoginView(APIView):
                 key="refresh_token",
                 value=str(refresh),
                 httponly=True,
-                secure=False,  # Cambiar a True en producción
-                samesite="Lax",
+                secure=True,  # Cambiar a True en producción
+                samesite="None",
                 path="/auth/api/refresh/",
             )
 
@@ -161,8 +161,8 @@ class CookieTokenRefreshView(TokenRefreshView):
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=False,  # cambia a True en producción
-            samesite="Lax",
+            secure=True,  # cambia a True en producción
+            samesite="None",
             path="/",
         )
 
@@ -170,9 +170,19 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 
 def registrar_acceso(request, usuario):
-    ip = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
-    user_agent = request.META.get("HTTP_USER_AGENT", "")
-    HistorialAcceso.objects.create(usuario=usuario, ip=ip, user_agent=user_agent)
+    # Obtener IP y corregir múltiples IPs separadas por coma
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
+    if "," in ip:
+        ip = ip.split(",")[0].strip()
+
+    user_agent = request.META.get("HTTP_USER_AGENT", "")[:255]
+
+    HistorialAcceso.objects.create(
+        usuario=usuario,
+        ip=ip,
+        user_agent=user_agent,
+    )
+
 
 
 @api_view(["GET"])

@@ -23,6 +23,8 @@ from .views import (
     HistorialCambioViewSet,
     desvincular_empleado,
     cambiar_estado_empleado,
+    empleados_sin_contrato,
+    ContratoViewSet,
 )
 
 router = DefaultRouter()
@@ -34,6 +36,7 @@ router.register(r"salud", SaludViewSet)
 router.register(r"cesantia", CesantiaViewSet)
 router.register(r"reglas-contrato", ReglasContratoViewSet)
 router.register(r"tipo-contrato", TipoContratoViewSet, basename="tipo-contrato")
+router.register(r'contratos', ContratoViewSet)
 
 router.register(r"departamentos", DepartamentoViewSet, basename="departamentos")
 router.register(r"grupo-horarios", GrupoHorarioViewSet)
@@ -71,4 +74,5 @@ urlpatterns = [
         name="crear_multiples_horarios_empleado",
     ),
     path("api/horario-empleado-eliminar-multiples/", eliminar_varios_horarios_empleado),
+    path('empleados-sin-contrato/', empleados_sin_contrato),
 ]

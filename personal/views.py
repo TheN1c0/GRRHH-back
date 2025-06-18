@@ -525,3 +525,15 @@ def cambiar_estado_empleado(request):
         )
     except Empleado.DoesNotExist:
         return Response({"error": "Empleado no encontrado."}, status=404)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def empleados_sin_contrato(request):
+    empleados_contrato = Contrato.objects.values_list('empleado_id', flat=True)
+    empleados = Empleado.objects.exclude(id__in=empleados_contrato)
+    serializer = EmpleadoSerializer(empleados, many=True)
+    return Response(serializer.data)
+class ContratoViewSet(viewsets.ModelViewSet):
+    queryset = Contrato.objects.all()
+    serializer_class = ContratoSerializer
+    permission_classes = [IsAuthenticated]

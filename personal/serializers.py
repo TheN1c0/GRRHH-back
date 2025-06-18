@@ -253,3 +253,8 @@ class HistorialCambioSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistorialCambio
         fields = "__all__"
+        
+class ContratoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contrato
+        fields = '__all__'
