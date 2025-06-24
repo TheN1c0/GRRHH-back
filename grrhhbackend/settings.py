@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'authapp',
     'rest_framework',
     'personal',
-    
+    'analisiscv',
 ]
 
 MIDDLEWARE = [
