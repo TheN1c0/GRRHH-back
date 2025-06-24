@@ -171,9 +171,20 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',  
 ]
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp-relay.brevo.com")
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+# Solo agregar contraseña si no estás usando Brevo
+if "brevo.com" not in EMAIL_HOST:
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+else:
+    EMAIL_HOST_PASSWORD = None
+
+# Para verificación de correos y enlaces frontend
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://melodic-stroopwafel-55a7ce.netlify.app")
+
+# API de Brevo para SMS y otros servicios
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")

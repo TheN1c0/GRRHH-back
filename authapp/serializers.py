@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Nota, PerfilUsuario
+from .models import Nota, PerfilUsuario, PermisosRRHH
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -66,3 +66,36 @@ class MiCuentaSerializer(serializers.ModelSerializer):
         perfil.save()
 
         return instance
+class PermisosRRHHSerializer(serializers.ModelSerializer):
+    usuario = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = PermisosRRHH
+        fields = ['id', 'usuario', 'solo_lectura', 'puede_eliminar']
+
+class UsuarioRRHHSerializer(serializers.ModelSerializer):
+    perfil = serializers.SerializerMethodField()
+    permisos = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'is_superuser', 'perfil', 'permisos']
+
+    def get_perfil(self, obj):
+        perfil = getattr(obj, 'perfil', None)
+        if perfil:
+            return {
+                "telefono": perfil.telefono,
+                "telefono_verificado": perfil.telefono_verificado,
+                "email_verificado": perfil.email_verificado,
+            }
+        return None
+
+    def get_permisos(self, obj):
+        permisos = getattr(obj, 'permisos_rrhh', None)
+        if permisos:
+            return {
+                "solo_lectura": permisos.solo_lectura,
+                "puede_eliminar": permisos.puede_eliminar,
+            }
+        return None

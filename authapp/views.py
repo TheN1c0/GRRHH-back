@@ -7,6 +7,11 @@ from .serializers import RegisterSerializer, NotaSerializer, MiCuentaSerializer,
 import json
 from .models import HistorialAcceso,  PerfilUsuario, Nota
 from rest_framework.decorators import api_view, permission_classes
+from django.core.signing import TimestampSigner
+from django.conf import settings
+from pathlib import Path
+from dotenv import load_dotenv
+
 
 
 
@@ -275,33 +280,171 @@ def mi_cuenta(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def reenviar_verificacion_correo(request):
+    from django.core.signing import TimestampSigner
+
     user = request.user
     perfil, creado = PerfilUsuario.objects.get_or_create(user=user)
 
     if not perfil.nuevo_email:
         return Response({"detail": "No hay un correo pendiente de verificación."}, status=400)
 
-    # Enviar correo con un enlace falso de verificación (lógica real puede incluir token único)
+    signer = TimestampSigner()
+    token = signer.sign(user.id)
+    frontend_url = settings.FRONTEND_URL
+    url = f"{frontend_url}/verificar-email?token={token}"
+
     send_mail(
         subject="Verifica tu nuevo correo",
-        message=f"Hola {user.first_name}, verifica tu correo visitando el enlace: https://tuapp.com/verificar-email/{user.id}/",
-        from_email="no-reply@tuapp.com",
+        message=f"Hola {user.first_name}, verifica tu correo aquí: {url}",
+        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[perfil.nuevo_email],
+        html_message=f"""
+            <p>Hola {user.first_name},</p>
+            <p>Haz clic en el siguiente enlace para verificar tu correo:</p>
+            <p><a href="{url}" target="_blank">{url}</a></p>
+            <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+        """,
     )
 
     return Response({"detail": "Correo de verificación enviado."})
 
 
+@api_view(["GET"])
+@permission_classes([]) 
+def confirmar_verificacion_correo(request):
+    token = request.query_params.get("token")
+
+    if not token:
+        return Response({"detail": "Token faltante."}, status=400)
+
+    signer = TimestampSigner()
+    try:
+        user_id = signer.unsign(token, max_age=86400)  # 24 horas
+    except SignatureExpired:
+        return Response({"detail": "El enlace ha expirado."}, status=400)
+    except BadSignature:
+        return Response({"detail": "Enlace inválido."}, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+        perfil = user.perfil
+
+        if not perfil.nuevo_email:
+            return Response({"detail": "No hay un correo pendiente de confirmación."}, status=400)
+
+        # Confirmar correo
+        user.email = perfil.nuevo_email
+        perfil.email_verificado = True
+        perfil.nuevo_email = ''
+        user.save()
+        perfil.save()
+
+        return Response({"detail": "Correo verificado exitosamente."})
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado."}, status=404)
+
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def reenviar_verificacion_telefono(request):
     user = request.user
-    perfil, creado = PerfilUsuario.objects.get_or_create(user=user)
+    perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
 
     if not perfil.nuevo_telefono:
         return Response({"detail": "No hay un número pendiente de verificación."}, status=400)
 
-    # Simulación de envío SMS
-    print(f"📲 SMS enviado a {perfil.nuevo_telefono}: Tu código de verificación es 123456")
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY
+    api_instance = sib_api_v3_sdk.TransactionalSMSApi(sib_api_v3_sdk.ApiClient(configuration))
 
-    return Response({"detail": "Mensaje SMS enviado (simulado)."})
+    codigo = perfil.generate_sms_code()  # esta función debe existir en tu modelo
+    sms_req = sib_api_v3_sdk.SendTransacSms(
+        sender="MyCompany",
+        recipient=perfil.nuevo_telefono,
+        content=f"Tu código de verificación es: {codigo}"
+    )
+
+    try:
+        api_instance.send_transac_sms(sms_req)
+        return Response({"detail": "Mensaje SMS enviado correctamente."})
+    except ApiException as e:
+        return Response({"detail": "Error al enviar SMS.", "error": str(e)}, status=500)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def confirmar_verificacion_telefono(request):
+    codigo = request.data.get("code")
+
+    if not codigo:
+        return Response({"detail": "Código faltante."}, status=400)
+
+    perfil = request.user.perfil
+
+    if perfil.verify_sms_code(codigo):
+        return Response({"detail": "📱 Teléfono verificado correctamente."})
+
+    return Response({"detail": "❌ Código inválido o expirado."}, status=400)
+
+
+# views.py
+
+from django.contrib.auth.models import User
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from .serializers import UsuarioRRHHSerializer, PermisosRRHHSerializer
+from .models import PerfilUsuario, PermisosRRHH
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+
+
+class UsuarioRRHHViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UsuarioRRHHSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=data["username"],
+                email=data["email"],
+                password=data["password"],
+                is_superuser=data.get("is_superuser", False),
+                is_staff=True
+            )
+
+            PerfilUsuario.objects.create(user=user)
+
+            PermisosRRHH.objects.create(
+                user=user,
+                solo_lectura=data.get("solo_lectura", False),
+                puede_eliminar=data.get("puede_eliminar", False),
+            )
+
+        return Response({"mensaje": "Usuario creado exitosamente"}, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+        data = request.data
+
+        with transaction.atomic():
+            user.email = data.get("email", user.email)
+            user.is_superuser = data.get("is_superuser", user.is_superuser)
+            user.save()
+
+            # Actualiza permisos
+            permisos, _ = PermisosRRHH.objects.get_or_create(user=user)
+            permisos.solo_lectura = data.get("solo_lectura", permisos.solo_lectura)
+            permisos.puede_eliminar = data.get("puede_eliminar", permisos.puede_eliminar)
+            permisos.save()
+
+        return Response({"mensaje": "Usuario actualizado correctamente"})
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response({"mensaje": "Usuario eliminado"})
