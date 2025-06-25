@@ -21,6 +21,7 @@ from .models import (
     HorarioEmpleado,
     HistorialCambio,
     Asistencia,
+    PalabraClave
 )
 from .serializers import *
 from rest_framework.views import APIView
@@ -33,7 +34,8 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 from django.utils.timezone import datetime, now
 from django.db import models
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
+
 from .models import (
     Empleado,
     Contrato,
@@ -46,6 +48,7 @@ from .models import (
 )
 from personal.utils.mixins import HistorialMixin
 
+from analisiscv.services.analisis_ia import generar_etiquetas_para_cargo
 
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
@@ -69,7 +72,11 @@ class CargoViewSet(viewsets.ModelViewSet):
     queryset = Cargo.objects.all()
     serializer_class = CargoSerializer
     permission_classes = [IsAuthenticated]
-
+    def perform_create(self, serializer):
+        generar = self.request.data.get("generar_etiquetas_ia") in ["true", "True", True, "1", 1]
+        cargo = serializer.save()
+        if generar:
+            cargo.inicializar_etiquetas_con_ia()
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if Empleado.objects.filter(cargo=instance).exists():
@@ -538,3 +545,36 @@ class ContratoViewSet(viewsets.ModelViewSet):
     queryset = Contrato.objects.all()
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'], url_path='lista-empleados', permission_classes=[AllowAny])
+    def lista_empleados(self, request):
+        contratos = Contrato.objects.select_related("empleado", "empleado__cargo").all()
+        serializer = ContratoEmpleadoSerializer(contratos, many=True)
+        return Response(serializer.data)
+    
+class PalabraClaveViewSet(viewsets.ModelViewSet):
+    queryset = PalabraClave.objects.all()
+    serializer_class = PalabraClaveSerializer
+    permission_classes = [IsAuthenticated]
+
+class DatosPrevisionalesViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request):
+        serializer = DatosPrevisionalesSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'mensaje': 'Datos previsionales creados'}, status=201)
+        return Response(serializer.errors, status=400)
+
+    def update(self, request, pk=None):
+        try:
+            datos = DatosPrevisionales.objects.get(empleado_id=pk)
+        except DatosPrevisionales.DoesNotExist:
+            return Response({'error': 'No existen datos previsionales para ese empleado'}, status=404)
+
+        serializer = DatosPrevisionalesSerializer(datos, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'mensaje': 'Datos previsionales actualizados'})
+        return Response(serializer.errors, status=400)

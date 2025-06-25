@@ -9,3 +9,4 @@ nltk
 django-filter==25.1
 python-dotenv
 sib-api-v3-sdk
+scikit-learn

@@ -16,6 +16,8 @@ from .models import (
     Horario,
     HorarioEmpleado,
     HistorialCambio,
+    PalabraClave,
+    DatosPrevisionales,
 )
 
 
@@ -32,7 +34,10 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     fecha_inicio = serializers.SerializerMethodField()
     fecha_fin = serializers.SerializerMethodField()
     horario_empleado_id = serializers.SerializerMethodField()
-
+    contrato = serializers.SerializerMethodField()
+    afp = serializers.SerializerMethodField()
+    salud = serializers.SerializerMethodField()
+    cesantia = serializers.SerializerMethodField()
     class Meta:
         model = Empleado
         fields = [
@@ -57,6 +62,10 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             "fecha_fin",
             "horario_empleado_id",
             "estado",
+            "contrato", 
+            "afp",
+            "salud", 
+            "cesantia"
         ]
 
     def get_nombre_usuario(self, obj):
@@ -95,12 +104,44 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         horario = obj.horarioempleado_set.order_by("-fecha_inicio").first()
         return horario.id if horario else None
 
+    def get_contrato(self, obj):
+        contrato = getattr(obj, 'contrato', None)
+        if contrato and contrato.tipo_contrato:
+            return contrato.tipo_contrato.nombre
+        return "No tiene contrato asignado"
+
+    def get_afp(self, obj):
+        previsional = getattr(obj, 'datosprevisionales', None)
+        if previsional and previsional.afp:
+            return previsional.afp.nombre
+        return "No asignado aún"
+
+    def get_salud(self, obj):
+        previsional = getattr(obj, 'datosprevisionales', None)
+        if previsional and previsional.salud:
+            return previsional.salud.nombre
+        return "No asignado aún"
+
+    def get_cesantia(self, obj):
+        previsional = getattr(obj, 'datosprevisionales', None)
+        if previsional and previsional.seguro_cesantia:
+            return previsional.seguro_cesantia.nombre
+        return "No asignado aún"
 
 class CargoSerializer(serializers.ModelSerializer):
-    departamento_nombre = serializers.CharField(
-        source="departamento.nombre", read_only=True
-    )
+    departamento_nombre = serializers.CharField(source="departamento.nombre", read_only=True)
     superior_nombre = serializers.CharField(source="superior.nombre", read_only=True)
+
+    generar_etiquetas_ia = serializers.BooleanField(write_only=True, required=False)
+
+    palabras_clave = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=PalabraClave.objects.all(),
+        required=False
+    )
+
+    # ✅ Campo de solo lectura para mostrar etiquetas completas
+    palabras_clave_detalle = serializers.SerializerMethodField()
 
     class Meta:
         model = Cargo
@@ -111,7 +152,24 @@ class CargoSerializer(serializers.ModelSerializer):
             "superior",
             "departamento_nombre",
             "superior_nombre",
+            "generar_etiquetas_ia",
+            "palabras_clave",
+            "palabras_clave_detalle"  # importante agregar aquí también
         ]
+
+    def get_palabras_clave_detalle(self, obj):
+        return [
+            {
+                "id": pk.id,
+                "nombre": pk.nombre,
+                "categoria": pk.categoria
+            }
+            for pk in obj.palabras_clave.all()
+        ]
+    def create(self, validated_data):
+        validated_data.pop('generar_etiquetas_ia', None)
+        return super().create(validated_data)
+
 
 
 class DepartamentoSerializer(serializers.ModelSerializer):
@@ -170,6 +228,9 @@ class EtiquetaSerializer(serializers.ModelSerializer):
 class PostulanteSerializer(serializers.ModelSerializer):
     etiquetas = EtiquetaSerializer(many=True, read_only=True)
     cargo_postulado = serializers.PrimaryKeyRelatedField(queryset=Cargo.objects.all())
+    cargo_postulado_nombre = serializers.CharField(
+    source="cargo_postulado.nombre", read_only=True
+)
 
     class Meta:
         model = Postulante
@@ -185,6 +246,7 @@ class PostulanteSerializer(serializers.ModelSerializer):
             "correo",
             "telefono",
             "cargo_postulado",
+            "cargo_postulado_nombre", 
             "curriculum",
             "estado",
             "fecha_postulacion",
@@ -258,3 +320,13 @@ class ContratoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contrato
         fields = '__all__'
+        
+class PalabraClaveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PalabraClave
+        fields = ['id', 'nombre', 'categoria']
+
+class DatosPrevisionalesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DatosPrevisionales
+        fields = ['empleado', 'afp', 'salud', 'seguro_cesantia']

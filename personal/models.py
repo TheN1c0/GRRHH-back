@@ -7,7 +7,9 @@ import nltk
 from nltk.tokenize import word_tokenize
 import re
 
-# Create your models here.
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from analisiscv.services.analisis_ia import analizar_curriculum_con_ia, generar_etiquetas_para_cargo
 
 
 class HistorialCambio(models.Model):
@@ -37,7 +39,7 @@ class Cargo(models.Model):
     superior = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL
     )
-
+    palabras_clave = models.ManyToManyField('PalabraClave', blank=True)
     def __str__(self):
         if self.superior:
             return f"{self.nombre} ({self.departamento.nombre}) → Jefe: {self.superior.nombre}"
@@ -60,6 +62,40 @@ class Cargo(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()  # Ejecuta las validaciones de clean()
         super().save(*args, **kwargs)
+    def inicializar_etiquetas_con_ia(self):
+        try:
+            resultado = generar_etiquetas_para_cargo(self.nombre)
+
+            for nombre in resultado.get("habilidades", []):
+                if nombre:
+                    palabra, _ = PalabraClave.objects.get_or_create(
+                        nombre=nombre.strip().lower(),
+                        defaults={"categoria": "habilidad"}
+                    )
+                    self.palabras_clave.add(palabra)
+
+            for nombre in resultado.get("certificaciones", []):
+                if nombre:
+                    palabra, _ = PalabraClave.objects.get_or_create(
+                        nombre=nombre.strip().lower(),
+                        defaults={"categoria": "certificacion"}
+                    )
+                    self.palabras_clave.add(palabra)
+
+            for nombre in resultado.get("areas", []):
+                if nombre:
+                    palabra, _ = PalabraClave.objects.get_or_create(
+                        nombre=nombre.strip().lower(),
+                        defaults={"categoria": "area"}
+                    )
+                    self.palabras_clave.add(palabra)
+
+            self.save()
+
+        except Exception as e:
+            print(f"Error al generar etiquetas para cargo {self.nombre}: {e}")
+
+
 
 
 class Empleado(models.Model):
@@ -213,7 +249,10 @@ class Salud(models.Model):
     porcentaje_cotizacion = models.DecimalField(
         max_digits=5, decimal_places=2, default=7.00
     )
-
+    def save(self, *args, **kwargs):
+        if self.tipo == 'FONASA':
+            self.nombre = 'FONASA'  
+        super().save(*args, **kwargs)
     def __str__(self):
         if self.tipo == "FONASA":
             return "Fonasa"
@@ -316,7 +355,7 @@ class PalabraClave(models.Model):
             ("area", "Área"),
         ],
     )
-
+    sinonimos = models.TextField(blank=True, help_text="Separados por coma")
     def __str__(self):
         return f"{self.nombre} ({self.categoria})"
 
@@ -325,6 +364,7 @@ try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
     nltk.download("punkt")
+
 
 
 class Postulante(models.Model):
@@ -350,45 +390,79 @@ class Postulante(models.Model):
     fecha_postulacion = models.DateTimeField(default=timezone.now)
     etiquetas = models.ManyToManyField(Etiqueta, blank=True)
     prioridad = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
-
+    texto_extraido = models.TextField(blank=True, null=True)
     def __str__(self):
         return f"{self.primer_nombre} {self.apellido_paterno} - {self.cargo_postulado}"
 
     def procesar_curriculum(self):
-        if not self.curriculum:
-            return
-
-        etiquetas_detectadas = set()
-        palabras_no_reconocidas = set()
-
         try:
-            pdf = PdfReader(self.curriculum)
-            texto = ""
-            for page in pdf.pages:
-                texto += page.extract_text().lower()
+            if not self.curriculum:
+                return
 
-            palabras_clave = PalabraClave.objects.values_list("nombre", flat=True)
+            pdf = PdfReader(self.curriculum)
+            texto = "".join([page.extract_text().lower() for page in pdf.pages])
+            self.texto_extraido = texto
+            self.save()
+
+            palabras_clave = PalabraClave.objects.all()
             palabras_cv = set(re.findall(r"\b\w+\b", texto))
 
+            # Registrar palabras desconocidas si pasan filtros y aparecen 3+ veces
+            palabras_no_reconocidas = set()
+            conocidas = set()
+            for pc in palabras_clave:
+                conocidas.update([pc.nombre] + [s.strip() for s in (pc.sinonimos or "").split(",")])
+
             for palabra in palabras_cv:
-                if palabra in palabras_clave:
-                    etiquetas_detectadas.add(palabra)
-                elif len(palabra) > 3:
-                    palabras_no_reconocidas.add(palabra)
+                if palabra not in conocidas and len(palabra) > 3 and not palabra.isdigit():
+                    try:
+                        obj, created = PalabraDesconocida.objects.get_or_create(palabra=palabra)
+                        if not created:
+                            obj.veces_detectada += 1
+                            obj.save()
+                        if obj.veces_detectada >= 3:
+                            palabras_no_reconocidas.add(palabra)
+                    except Exception as err:
+                        print(f"Error registrando palabra desconocida '{palabra}': {err}")
 
-            for palabra in etiquetas_detectadas:
-                etiqueta_obj, _ = Etiqueta.objects.get_or_create(nombre=palabra)
-                self.etiquetas.add(etiqueta_obj)
+            # Detectar etiquetas por coincidencia o sinónimos
+            etiquetas_detectadas = set()
+            for pc in palabras_clave:
+                variantes = [pc.nombre] + [s.strip() for s in (pc.sinonimos or "").split(",")]
+                if any(v in palabras_cv for v in variantes):
+                    etiquetas_detectadas.add(pc.nombre)
 
-            # Aquí puedes registrar o guardar las palabras no reconocidas para revisión manual
-            for palabra in sorted(palabras_no_reconocidas):
-                obj, created = PalabraDesconocida.objects.get_or_create(palabra=palabra)
-                if not created:
-                    obj.veces_detectada += 1
-                    obj.save()
+            for nombre in etiquetas_detectadas:
+                etiqueta, _ = Etiqueta.objects.get_or_create(nombre=nombre)
+                self.etiquetas.add(etiqueta)
+
+            # 🧠 Generar etiquetas para el cargo si no tiene
+            if not self.cargo_postulado.palabras_clave.exists():
+                self.cargo_postulado.inicializar_etiquetas_con_ia()
+
+            # Recalcular con posibles nuevas etiquetas IA
+            etiquetas_ia = analizar_curriculum_con_ia(self.texto_extraido)
+            for nombre in etiquetas_ia:
+                etiqueta, _ = Etiqueta.objects.get_or_create(nombre=nombre)
+                self.etiquetas.add(etiqueta)
+
+            # 🧠 Vectorización y prioridad
+            cargo_vector = {pc.nombre: 1 for pc in self.cargo_postulado.palabras_clave.all()}
+            postulante_vector = {e.nombre: 1 for e in self.etiquetas.all()}
+
+            if not cargo_vector or not postulante_vector:
+                self.prioridad = 0.0
+            else:
+                dv = DictVectorizer()
+                X = dv.fit_transform([postulante_vector, cargo_vector])
+                similitud = cosine_similarity(X[0], X[1])[0][0]
+                self.prioridad = round(similitud, 3)
+
+            self.save()
 
         except Exception as e:
-            print(f"Error procesando CV: {e}")
+            print(f"Error en extracción y análisis del CV: {e}")
+
 
 
 class PalabraDesconocida(models.Model):

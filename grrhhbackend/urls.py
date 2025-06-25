@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('authapp.urls')),
     path('personal/', include('personal.urls')),
-    
+    path("analisis/", include("analisiscv.urls")),
+
     path('', lambda request: JsonResponse({'mensaje': 'Servidor Django funcionando correctamente ✅'})),
 ]
