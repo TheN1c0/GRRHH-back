@@ -27,6 +27,7 @@ from .views import (
     ContratoViewSet,
     PalabraClaveViewSet,
     DatosPrevisionalesViewSet,
+    obtener_permisos_usuario_actual
 )
 
 router = DefaultRouter()
@@ -79,4 +80,5 @@ urlpatterns = [
     ),
     path("api/horario-empleado-eliminar-multiples/", eliminar_varios_horarios_empleado),
     path('empleados-sin-contrato/', empleados_sin_contrato),
+    path('api/permisos-usuario-actual/', obtener_permisos_usuario_actual),
 ]

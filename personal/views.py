@@ -53,6 +53,7 @@ from analisiscv.services.analisis_ia import generar_etiquetas_para_cargo
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .pagination import EmpleadoPagination
+from authapp.permissions import PuedeCrear, PuedeEditar, PuedeEliminar
 
 
 class EmpleadoViewSet(HistorialMixin, viewsets.ModelViewSet):
@@ -66,7 +67,14 @@ class EmpleadoViewSet(HistorialMixin, viewsets.ModelViewSet):
 
     filterset_fields = ["cargo", "empleador", "cargo__departamento", "estado"]
     pagination_class = EmpleadoPagination
-
+    def get_permissions(self):
+        if self.action == 'create':
+            return [PuedeCrear()]
+        elif self.action in ['update', 'partial_update']:
+            return [PuedeEditar()]
+        elif self.action == 'destroy':
+            return [PuedeEliminar()]
+        return [IsAuthenticated()]
 
 class CargoViewSet(viewsets.ModelViewSet):
     queryset = Cargo.objects.all()
@@ -100,14 +108,53 @@ class GenerarLiquidacionView(APIView):
             empleado = contrato.empleado
             previsionales = DatosPrevisionales.objects.get(empleado=empleado)
 
-            # Calcular gratificación
-            IMM = Decimal("500000")  # o traer desde ParametroSistema
+            # Calcular gratificación (IMM puede obtenerse de ParametroSistema si está disponible)
+            try:
+                param_imm = ParametroSistema.objects.filter(nombre__iexact="IMM").order_by("-fecha_vigencia").first()
+                IMM = param_imm.valor_decimal if param_imm else Decimal("500000")
+            except Exception:
+                IMM = Decimal("500000")
             if data["gratificacion_tipo"] == "legal":
-                tope = (IMM * Decimal("4.75")) / 12
+                tope = (IMM * Decimal("4.75")) / Decimal("12")
                 gratificacion = min(contrato.sueldo_base * Decimal("0.25"), tope)
             else:
                 gratificacion = contrato.sueldo_base / Decimal("12")
+            
             empleador = empleado.empleador
+            if empleador:
+                razon_social_empleador = empleador.nombre
+                rut_empleador = empleador.rut
+                direccion_empleador = empleador.direccion
+            else:
+                razon_social_empleador = "No Aplica"
+                rut_empleador = "No Aplica"
+                direccion_empleador = "No Aplica"
+
+            # Preparar datos previsionales congelados (usar "No Aplica" si no hay datos)
+            if previsionales.afp:
+                nombre_afp = previsionales.afp.nombre
+                porcentaje_afp = previsionales.afp.porcentaje_cotizacion
+                comision_afp = Decimal("1.44")  # Comisión fija de ejemplo; idealmente obtener de AFP o ParametroSistema
+            else:
+                nombre_afp = "No Aplica"
+                porcentaje_afp = None
+                comision_afp = Decimal("0.00")
+            if previsionales.salud:
+                nombre_salud = previsionales.salud.nombre or previsionales.salud.tipo
+                tipo_salud = previsionales.salud.tipo
+                porcentaje_salud = previsionales.salud.porcentaje_cotizacion
+            else:
+                nombre_salud = "No Aplica"
+                tipo_salud = None
+                porcentaje_salud = None
+            if previsionales.seguro_cesantia:
+                nombre_seguro = previsionales.seguro_cesantia.nombre
+                porc_cesantia_trabajador = previsionales.seguro_cesantia.porcentaje_trabajador
+                porc_cesantia_empleador = previsionales.seguro_cesantia.porcentaje_empleador
+            else:
+                nombre_seguro = "No Aplica"
+                porc_cesantia_trabajador = None
+                porc_cesantia_empleador = None
 
             # Crear Liquidación con campos congelados
             liquidacion = Liquidacion.objects.create(
@@ -116,76 +163,146 @@ class GenerarLiquidacionView(APIView):
                 periodo_termino=data["periodo_termino"],
                 sueldo_base=contrato.sueldo_base,
                 gratificacion=gratificacion,
-                sueldo_bruto=contrato.sueldo_base + gratificacion,
+                sueldo_bruto=contrato.sueldo_base + gratificacion,  # se actualizará más abajo si hay haberes imponibles
                 rut_empleado=empleado.rut,
-                nombre_empleado=f"{empleado.primer_nombre} {empleado.otros_nombres or ''} {empleado.apellido_paterno} {empleado.apellido_materno}",
-                cargo_empleado=empleado.cargo.nombre,
-                tipo_contrato=contrato.tipo_contrato,
+                nombre_empleado=f"{empleado.primer_nombre} {empleado.otros_nombres or ''} {empleado.apellido_paterno} {empleado.apellido_materno}".strip(),
+                cargo_empleado=empleado.cargo.nombre if empleado.cargo else "Sin cargo",
+                tipo_contrato=str(contrato.tipo_contrato),  # Convertir a string si es ForeignKey/objeto
                 fecha_ingreso=contrato.fecha_inicio,
-                nombre_afp=previsionales.afp.nombre,
-                porcentaje_afp=previsionales.afp.porcentaje_cotizacion,
-                comision_afp=Decimal("1.44"),  # ejemplo fijo
-                nombre_salud=previsionales.salud.nombre or previsionales.salud.tipo,
-                tipo_salud=previsionales.salud.tipo,
-                porcentaje_salud=previsionales.salud.porcentaje_cotizacion,
-                nombre_seguro_cesantia=previsionales.seguro_cesantia.nombre,
-                porcentaje_cesantia_trabajador=previsionales.seguro_cesantia.porcentaje_trabajador,
-                porcentaje_cesantia_empleador=previsionales.seguro_cesantia.porcentaje_empleador,
-                razon_social_empleador=empleador.nombre,
-                rut_empleador=empleador.rut,
-                direccion_empleador=empleador.direccion,
+                nombre_afp=nombre_afp,
+                porcentaje_afp=porcentaje_afp,
+                comision_afp=comision_afp,
+                nombre_salud=nombre_salud,
+                tipo_salud=tipo_salud,
+                porcentaje_salud=porcentaje_salud,
+                nombre_seguro_cesantia=nombre_seguro,
+                porcentaje_cesantia_trabajador=porc_cesantia_trabajador,
+                porcentaje_cesantia_empleador=porc_cesantia_empleador,
+                razon_social_empleador=razon_social_empleador,
+                rut_empleador=rut_empleador,
+                direccion_empleador=direccion_empleador,
             )
 
+            # Calcular totales de haberes e imponibles
             total_haberes = contrato.sueldo_base + gratificacion
-
+            sueldo_imponible = contrato.sueldo_base + gratificacion
             for h in data["haberes"]:
                 Haber.objects.create(liquidacion=liquidacion, **h)
                 total_haberes += h["monto"]
+                if h["tipo"] == "imponible":
+                    sueldo_imponible += h["monto"]
 
+            # Calcular y registrar descuentos proporcionados en la solicitud
             total_descuentos = Decimal("0")
             for d in data["descuentos"]:
-                tipo, _ = TipoDescuento.objects.get_or_create(nombre=d["tipo"])
+                tipo_desc, _ = TipoDescuento.objects.get_or_create(nombre=d["tipo"])
                 OtroDescuento.objects.create(
                     liquidacion=liquidacion,
-                    tipo=tipo,
+                    tipo=tipo_desc,
                     monto=d["monto"],
-                    descripcion=d.get("descripcion", ""),
+                    descripcion=d.get("descripcion", "")
                 )
                 total_descuentos += d["monto"]
 
-            # Puedes incluir descuentos legales acá también
+            # Incluir descuentos legales (AFP, Salud, Seguro de Cesantía) si corresponden
+            # Descuento AFP (incluye comisión) 
+            if previsionales.afp:
+                afp_percent = previsionales.afp.porcentaje_cotizacion or Decimal("0")
+                afp_commission = comision_afp  # ya definido arriba
+                total_afp_percent = afp_percent + afp_commission
+                descuento_afp = (sueldo_imponible * total_afp_percent) / Decimal("100")
+                descuento_afp = descuento_afp.quantize(Decimal("0.01"))  # Redondear a 2 decimales
+                if descuento_afp > 0:
+                    tipo_desc, _ = TipoDescuento.objects.get_or_create(nombre="Cotización AFP")
+                    OtroDescuento.objects.create(
+                        liquidacion=liquidacion,
+                        tipo=tipo_desc,
+                        monto=descuento_afp,
+                        descripcion=f"{nombre_afp} ({afp_percent}% + {afp_commission}% comisión)"
+                    )
+                    total_descuentos += descuento_afp
 
+            # Descuento Salud (Fonasa/Isapre)
+            if previsionales.salud:
+                salud_percent = previsionales.salud.porcentaje_cotizacion or Decimal("0")
+                descuento_salud = (sueldo_imponible * salud_percent) / Decimal("100")
+                descuento_salud = descuento_salud.quantize(Decimal("0.01"))
+                if descuento_salud > 0:
+                    tipo_desc, _ = TipoDescuento.objects.get_or_create(nombre="Cotización Salud")
+                    OtroDescuento.objects.create(
+                        liquidacion=liquidacion,
+                        tipo=tipo_desc,
+                        monto=descuento_salud,
+                        descripcion=f"{nombre_salud} ({salud_percent}%)"
+                    )
+                    total_descuentos += descuento_salud
+
+            # Descuento Seguro de Cesantía (solo trabajador, el empleador no afecta sueldo líquido)
+            if previsionales.seguro_cesantia:
+                sc_percent = previsionales.seguro_cesantia.porcentaje_trabajador or Decimal("0")
+                descuento_cesantia = (sueldo_imponible * sc_percent) / Decimal("100")
+                descuento_cesantia = descuento_cesantia.quantize(Decimal("0.01"))
+                if descuento_cesantia > 0:
+                    tipo_desc, _ = TipoDescuento.objects.get_or_create(nombre="Seguro Cesantía")
+                    OtroDescuento.objects.create(
+                        liquidacion=liquidacion,
+                        tipo=tipo_desc,
+                        monto=descuento_cesantia,
+                        descripcion=f"{nombre_seguro} ({sc_percent}%)"
+                    )
+                    total_descuentos += descuento_cesantia
+
+            # Actualizar campos totales en Liquidacion
             sueldo_liquido = total_haberes - total_descuentos
+            liquidacion.sueldo_bruto = sueldo_imponible  # sueldo imponible total (sueldo bruto actualizado)
             liquidacion.total_haberes = total_haberes
             liquidacion.total_descuentos = total_descuentos
             liquidacion.sueldo_liquido = sueldo_liquido
             liquidacion.save()
 
-            pdf_data = generar_pdf_liquidacion(liquidacion)
+            # Generar PDF de la liquidación
+            pdf_data = generar_pdf_liquidacion(
+                    liquidacion,
+                    contexto_extra={
+                        "informe_imm": IMM,
+                        "tipo_gratificacion": data["gratificacion_tipo"],
+                        "gratificacion_25pct": contrato.sueldo_base * Decimal("0.25"),
+                        "gratificacion_tope": tope
+                    }
+                )
+            
             if pdf_data:
                 response = HttpResponse(pdf_data, content_type="application/pdf")
-                response["Content-Disposition"] = (
-                    f'attachment; filename="liquidacion_{liquidacion.id}.pdf"'
-                )
+                response["Content-Disposition"] = f'attachment; filename="liquidacion_{liquidacion.id}.pdf"'
                 return response
             else:
                 return Response({"error": "Error al generar el PDF"}, status=500)
-
+        # Si el serializer no es válido, retornar errores de validación
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-def generar_pdf_liquidacion(liquidacion):
+def generar_pdf_liquidacion(liquidacion, contexto_extra=None):
     template_path = "pdf/liquidacion.html"
-    context = {"liquidacion": liquidacion}
-    html = render_to_string(template_path, context)
+    haberes_qs = liquidacion.haberes.all()
+    descuentos_qs = liquidacion.detalles_descuento.all()
 
+    context = {
+        "liquidacion": liquidacion,
+        "haberes_imponibles": haberes_qs.filter(tipo="imponible"),
+        "haberes_no_imponibles": haberes_qs.filter(tipo="no_imponible"),
+        "descuentos": descuentos_qs,
+        "descuentos_legales": descuentos_qs.filter(tipo__nombre__in=[
+            "Cotización AFP", "Cotización Salud", "Seguro Cesantía"
+        ]),
+    }
+
+    if contexto_extra:
+        context.update(contexto_extra)
+
+    html = render_to_string(template_path, context)
     result = BytesIO()
     pdf = pisa.pisaDocument(BytesIO(html.encode("utf-8")), result)
-
-    if not pdf.err:
-        return result.getvalue()
-    return None
-
+    return result.getvalue() if not pdf.err else None
 
 class ListaContratosView(APIView):
     permission_classes = [AllowAny]
@@ -578,3 +695,21 @@ class DatosPrevisionalesViewSet(viewsets.ViewSet):
             serializer.save()
             return Response({'mensaje': 'Datos previsionales actualizados'})
         return Response(serializer.errors, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def obtener_permisos_usuario_actual(request):
+    user = request.user
+    permisos = getattr(user, 'permisos_rrhh', None)
+
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_superuser": user.is_superuser,
+        "permisos": {
+            "puede_crear": getattr(permisos, 'puede_crear', False),
+            "puede_editar": getattr(permisos, 'puede_editar', False),
+            "puede_eliminar": getattr(permisos, 'puede_eliminar', False),
+        }
+    })

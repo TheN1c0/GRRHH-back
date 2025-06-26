@@ -1,59 +1,184 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-      }
-      th,
-      td {
-        border: 1px solid #333;
-        padding: 5px;
-        text-align: left;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Liquidación de Sueldo</h1>
-    <p><strong>Trabajador:</strong> {{ liquidacion.nombre_empleado }}</p>
-    <p><strong>RUT:</strong> {{ liquidacion.rut_empleado }}</p>
-    <p>
-      <strong>Periodo:</strong> {{ liquidacion.periodo_inicio }} al {{
-      liquidacion.periodo_termino }}
-    </p>
 
-    <table>
-      <tr>
-        <th>Detalle</th>
-        <th>Monto</th>
-      </tr>
-      <tr>
-        <td>Sueldo Base</td>
-        <td>{{ liquidacion.sueldo_base }}</td>
-      </tr>
-      <tr>
-        <td>Gratificación</td>
-        <td>{{ liquidacion.gratificacion }}</td>
-      </tr>
-      <tr>
-        <td>Total Haberes</td>
-        <td>{{ liquidacion.total_haberes }}</td>
-      </tr>
-      <tr>
-        <td>Total Descuentos</td>
-        <td>{{ liquidacion.total_descuentos }}</td>
-      </tr>
-      <tr>
-        <td><strong>Sueldo Líquido</strong></td>
-        <td><strong>{{ liquidacion.sueldo_liquido }}</strong></td>
-      </tr>
-    </table>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #222;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 4px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+
+    th,
+    td {
+      border: 1px solid #555;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    .section-title {
+      margin-top: 25px;
+      font-weight: bold;
+      border-bottom: 1px solid #888;
+      padding-bottom: 4px;
+    }
+
+    .total-row {
+      font-weight: bold;
+      background-color: #f9f9f9;
+    }
+
+    small {
+      font-size: 10px;
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Liquidación de Sueldo</h1>
+
+  <p><strong>Trabajador:</strong> {{ liquidacion.nombre_empleado }}</p>
+  <p><strong>RUT:</strong> {{ liquidacion.rut_empleado }}</p>
+  <p><strong>Periodo:</strong> {{ liquidacion.periodo_inicio }} al {{ liquidacion.periodo_termino }}</p>
+
+  <div class="section-title">Haberes Imponibles</div>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Monto</th>
+    </tr>
+    <tr>
+      <td>Sueldo Base</td>
+      <td>{{ liquidacion.sueldo_base }}</td>
+    </tr>
+    <tr>
+      <td>Gratificación</td>
+      <td>{{ liquidacion.gratificacion }}</td>
+    </tr>
+    {% for h in haberes_imponibles %}
+    <tr>
+      <td>{{ h.nombre }}</td>
+      <td>{{ h.monto }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="section-title">Detalle Gratificación</div>
+  <table>
+    <tr>
+      <td>Tipo</td>
+      <td>{{ tipo_gratificacion|default:"Legal" }}</td>
+    </tr>
+    <tr>
+      <td>IMM vigente</td>
+      <td>${{ informe_imm }}</td>
+    </tr>
+    <tr>
+      <td>25% sueldo base</td>
+      <td>${{ gratificacion_25pct }}</td>
+    </tr>
+    <tr>
+      <td>Tope legal (IMM * 4.75 / 12)</td>
+      <td>${{ gratificacion_tope }}</td>
+    </tr>
+    <tr>
+      <td><strong>Resultado aplicado</strong></td>
+      <td><strong>${{ liquidacion.gratificacion }}</strong></td>
+    </tr>
+  </table>
+  <small>
+    * La gratificación legal se calcula conforme al Art. 50 del Código del Trabajo de Chile.
+    Se aplica el menor valor entre el 25% del sueldo base y el tope de 4,75 IMM anuales dividido en 12 meses.
+  </small>
+
+
+  <div class="section-title">Haberes No Imponibles</div>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Monto</th>
+    </tr>
+    {% for h in haberes_no_imponibles %}
+    <tr>
+      <td>{{ h.nombre }}</td>
+      <td>{{ h.monto }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="section-title">Descuentos Legales</div>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Base</th>
+      <th>%</th>
+      <th>Monto</th>
+    </tr>
+    {% for d in descuentos_legales %}
+    <tr>
+      <td>{{ d.nombre }}</td>
+      <td>{{ d.base }}</td>
+      <td>{{ d.porcentaje }}%</td>
+      <td>{{ d.monto }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="section-title">Otros Descuentos</div>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Monto</th>
+    </tr>
+    {% for d in descuentos %}
+    <tr>
+      <td>{{ d.tipo.nombre }}</td>
+      <td>{{ d.monto }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="section-title">Resumen Final</div>
+  <table>
+    <tr>
+      <td><strong>Total Haberes</strong></td>
+      <td>{{ liquidacion.total_haberes }}</td>
+    </tr>
+    <tr>
+      <td><strong>Total Descuentos</strong></td>
+      <td>{{ liquidacion.total_descuentos }}</td>
+    </tr>
+    <tr class="total-row">
+      <td><strong>Sueldo Líquido</strong></td>
+      <td><strong>{{ liquidacion.sueldo_liquido }}</strong></td>
+    </tr>
+  </table>
+
+  <small>
+    Fórmula: Sueldo Imponible = Sueldo Base + Gratificación + Haberes Imponibles.<br>
+    Sueldo Líquido = Sueldo Imponible - Descuentos Legales - Otros Descuentos.
+  </small>
+</body>
+
 </html>

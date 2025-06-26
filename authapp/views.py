@@ -129,7 +129,7 @@ class LogoutView(APIView):
     def post(self, request):
         response = Response({"message": "Sesión cerrada correctamente"}, status=status.HTTP_200_OK)
 
-        # Eliminar cookies
+       
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/auth/api/refresh/")
 
@@ -138,7 +138,7 @@ class LogoutView(APIView):
 class DashboardView(APIView):
     authentication_classes = [
         CookieJWTAuthentication
-    ]  # se llama por defecto, no la invocamos
+    ]  
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -169,15 +169,15 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         access_token = serializer.validated_data.get("access")
 
-        # Creamos la respuesta
+        
         response = Response({"access": access_token}, status=status.HTTP_200_OK)
 
-        # ✅ Actualizamos la cookie del access_token
+        
         response.set_cookie(
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=True,  # cambia a True en producción
+            secure=True,  
             samesite="None",
             path="/",
         )
@@ -186,7 +186,7 @@ class CookieTokenRefreshView(TokenRefreshView):
 
 
 def registrar_acceso(request, usuario):
-    # Obtener IP y corregir múltiples IPs separadas por coma
+    
     ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
     if "," in ip:
         ip = ip.split(",")[0].strip()
@@ -206,7 +206,7 @@ def registrar_acceso(request, usuario):
 def ultimo_acceso(request):
     accesos = HistorialAcceso.objects.filter(usuario=request.user).order_by("-fecha")[
         :3
-    ]  # 👈 obtenemos los 3 últimos accesos
+    ]  
 
     if not accesos:
         return Response({"error": "No hay accesos registrados"}, status=404)
@@ -360,7 +360,7 @@ def reenviar_verificacion_telefono(request):
     configuration.api_key['api-key'] = settings.BREVO_API_KEY
     api_instance = sib_api_v3_sdk.TransactionalSMSApi(sib_api_v3_sdk.ApiClient(configuration))
 
-    codigo = perfil.generate_sms_code()  # esta función debe existir en tu modelo
+    codigo = perfil.generate_sms_code()  
     sms_req = sib_api_v3_sdk.SendTransacSms(
         sender="MyCompany",
         recipient=perfil.nuevo_telefono,
@@ -389,7 +389,7 @@ def confirmar_verificacion_telefono(request):
     return Response({"detail": "❌ Código inválido o expirado."}, status=400)
 
 
-# views.py
+
 
 from django.contrib.auth.models import User
 from rest_framework import viewsets, status
@@ -398,6 +398,9 @@ from .serializers import UsuarioRRHHSerializer, PermisosRRHHSerializer
 from .models import PerfilUsuario, PermisosRRHH
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
+from .permissions import PuedeCrear, PuedeEditar, PuedeEliminar
+
+
 
 
 class UsuarioRRHHViewSet(viewsets.ModelViewSet):
@@ -407,6 +410,7 @@ class UsuarioRRHHViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
+        permisos_data = data.get("permisos", {})
 
         with transaction.atomic():
             user = User.objects.create_user(
@@ -421,11 +425,13 @@ class UsuarioRRHHViewSet(viewsets.ModelViewSet):
 
             PermisosRRHH.objects.create(
                 user=user,
-                solo_lectura=data.get("solo_lectura", False),
-                puede_eliminar=data.get("puede_eliminar", False),
+                puede_crear=permisos_data.get("puede_crear", False),
+                puede_editar=permisos_data.get("puede_editar", False),
+                puede_eliminar=permisos_data.get("puede_eliminar", False),
             )
 
         return Response({"mensaje": "Usuario creado exitosamente"}, status=status.HTTP_201_CREATED)
+
 
     def update(self, request, *args, **kwargs):
         user = self.get_object()
@@ -436,10 +442,13 @@ class UsuarioRRHHViewSet(viewsets.ModelViewSet):
             user.is_superuser = data.get("is_superuser", user.is_superuser)
             user.save()
 
-            # Actualiza permisos
             permisos, _ = PermisosRRHH.objects.get_or_create(user=user)
-            permisos.solo_lectura = data.get("solo_lectura", permisos.solo_lectura)
-            permisos.puede_eliminar = data.get("puede_eliminar", permisos.puede_eliminar)
+            permisos_data = data.get("permisos", {})
+
+            permisos.puede_crear = permisos_data.get("puede_crear", permisos.puede_crear)
+            permisos.puede_editar = permisos_data.get("puede_editar", permisos.puede_editar)
+            permisos.puede_eliminar = permisos_data.get("puede_eliminar", permisos.puede_eliminar)
+
             permisos.save()
 
         return Response({"mensaje": "Usuario actualizado correctamente"})
@@ -448,3 +457,4 @@ class UsuarioRRHHViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         user.delete()
         return Response({"mensaje": "Usuario eliminado"})
+

@@ -71,7 +71,8 @@ class PerfilUsuario(models.Model):
         return False
 class PermisosRRHH(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='permisos_rrhh')
-    solo_lectura = models.BooleanField(default=False)
+    puede_crear = models.BooleanField(default=False)
+    puede_editar = models.BooleanField(default=False)
     puede_eliminar = models.BooleanField(default=False)
 
     def __str__(self):

@@ -66,12 +66,14 @@ class MiCuentaSerializer(serializers.ModelSerializer):
         perfil.save()
 
         return instance
+    
+    
 class PermisosRRHHSerializer(serializers.ModelSerializer):
     usuario = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = PermisosRRHH
-        fields = ['id', 'usuario', 'solo_lectura', 'puede_eliminar']
+        fields = ['id', 'usuario', 'puede_crear', 'puede_editar', 'puede_eliminar']
 
 class UsuarioRRHHSerializer(serializers.ModelSerializer):
     perfil = serializers.SerializerMethodField()
@@ -95,7 +97,12 @@ class UsuarioRRHHSerializer(serializers.ModelSerializer):
         permisos = getattr(obj, 'permisos_rrhh', None)
         if permisos:
             return {
-                "solo_lectura": permisos.solo_lectura,
+                "puede_crear": permisos.puede_crear,
+                "puede_editar": permisos.puede_editar,
                 "puede_eliminar": permisos.puede_eliminar,
             }
-        return None
+        return {
+            "puede_crear": False,
+            "puede_editar": False,
+            "puede_eliminar": False,
+        }
